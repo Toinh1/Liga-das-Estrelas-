@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#141B24"/>
+      <stop offset="100%" stop-color="#090B0E"/>
+    </linearGradient>
+    <linearGradient id="starGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#BEF264"/>
+      <stop offset="100%" stop-color="#A3E635"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="128" fill="url(#bgGrad)"/>
+  <rect width="480" height="480" x="16" y="16" rx="112" fill="none" stroke="#A3E635" stroke-width="8" stroke-opacity="0.3"/>
+  
+  <!-- Estrela Central de Destaque -->
+  <polygon points="256,92 308,200 424,216 340,298 360,414 256,360 152,414 172,298 88,216 204,200" fill="url(#starGrad)"/>
+  
+  <!-- Linhas Esportivas Decorativas -->
+  <circle cx="256" cy="270" r="160" fill="none" stroke="#A3E635" stroke-width="4" stroke-opacity="0.2" stroke-dasharray="12 12"/>
+</svg>
