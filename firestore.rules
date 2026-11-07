@@ -1,0 +1,136 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function currentUserDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && currentUserDoc().role == 'admin';
+    }
+
+    function currentPlayerId() {
+      return currentUserDoc().playerId;
+    }
+
+    function getPelada(peladaId) {
+      return get(/databases/$(database)/documents/peladas/$(peladaId)).data;
+    }
+
+    // 1. USUÁRIOS
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.auth.uid == userId
+        && (request.resource.data.role == 'player' || !exists(/databases/$(database)/documents/meta/bootstrap));
+      allow update: if isAdmin() || (
+        isSignedIn() && request.auth.uid == userId
+        && request.resource.data.role == resource.data.role
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Controle de inicialização / metadados
+    match /meta/{docId} {
+      allow read: if true;
+      allow write: if isAdmin() || (isSignedIn() && docId == 'bootstrap' && !exists(/databases/$(database)/documents/meta/bootstrap));
+    }
+
+    // 2. JOGADORES
+    match /players/{playerId} {
+      allow read: if isSignedIn();
+      allow create: if isAdmin() || (isSignedIn() && request.resource.data.userId == request.auth.uid);
+      allow update: if isAdmin() || (
+        isSignedIn()
+        && (!('userId' in resource.data) || resource.data.userId == null || resource.data.userId == request.auth.uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'nickname', 'photoUrl', 'position', 'userId', 'email', 'updatedAt'])
+      );
+      allow delete: if isAdmin();
+    }
+
+    // 3. LINHAS (EQUIPES)
+    match /lines/{lineId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // 4. PELADAS (RODADAS DE SÁBADO)
+    match /peladas/{peladaId} {
+      allow read: if isSignedIn();
+      allow create, delete: if isAdmin();
+      // Jogador comum pode apenas confirmar/cancelar sua própria presença quando a pelada não está encerrada
+      allow update: if isAdmin() || (
+        isSignedIn()
+        && resource.data.status != 'finished'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['confirmedPlayerIds', 'updatedAt'])
+      );
+    }
+
+    // 5 & 6. PARTIDAS E RESULTADOS
+    match /matches/{matchId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /results/{resultId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // 7. GOLS INDIVIDUAIS
+    match /goals/{goalId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // 8. VOTOS (Secretos até encerrar, apenas presentes, 1 por categoria, proibido votar em si mesmo)
+    // ID determinístico: {peladaId}_{voterPlayerId}_{category}
+    match /votes/{voteId} {
+      allow read: if isSignedIn() && (
+        resource.data.voterUserId == request.auth.uid
+        || getPelada(resource.data.peladaId).votingStatus == 'closed'
+        || getPelada(resource.data.peladaId).status == 'finished'
+      );
+
+      allow create: if isSignedIn()
+        && voteId == (request.resource.data.peladaId + '_' + currentPlayerId() + '_' + request.resource.data.category)
+        && request.resource.data.voterUserId == request.auth.uid
+        && request.resource.data.voterPlayerId == currentPlayerId()
+        && request.resource.data.candidatePlayerId != currentPlayerId()
+        && (request.resource.data.category == 'best_player' || request.resource.data.category == 'best_goalkeeper')
+        && getPelada(request.resource.data.peladaId).votingStatus == 'open'
+        && currentPlayerId() in getPelada(request.resource.data.peladaId).presentPlayerIds;
+
+      allow update, delete: if false;
+    }
+
+    // 9. PREMIAÇÕES OFICIAIS
+    match /awards/{awardId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // 10. GALERIA DE FOTOS ("Momentos da Pelada")
+    match /photos/{photoId} {
+      allow read: if isSignedIn();
+      allow create: if isAdmin() || (
+        isSignedIn()
+        && request.resource.data.uploadedByUserId == request.auth.uid
+        && getPelada(request.resource.data.peladaId).allowPlayerUploads == true
+      );
+      allow update, delete: if isAdmin() || (isSignedIn() && resource.data.uploadedByUserId == request.auth.uid);
+    }
+
+    // NOTIFICAÇÕES VISUAIS
+    match /notifications/{notifId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isAdmin();
+    }
+  }
+}
