@@ -11,13 +11,19 @@ export const AuthPage: React.FC = () => {
   const [name, setName] = useState('');
   const [nickname, setNickname] = useState('');
   const [position, setPosition] = useState<PlayerPosition>('Meia');
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (mode === 'login') {
-      await login(email, password);
-    } else {
-      await register({ name, nickname, email, password, position });
+    setErrorMsg(null);
+    try {
+      if (mode === 'login') {
+        await login(email, password);
+      } else {
+        await register({ name, nickname, email, password, position });
+      }
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Erro ao autenticar. Tente novamente.');
     }
   };
 
@@ -64,6 +70,12 @@ export const AuthPage: React.FC = () => {
           onSubmit={handleSubmit}
           className="p-6 rounded-3xl bg-[#11161F] border border-white/[0.08] space-y-4 shadow-2xl"
         >
+          {errorMsg && (
+            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs text-center animate-fade-in">
+              {errorMsg}
+            </div>
+          )}
+
           {mode === 'register' && (
             <>
               <div>

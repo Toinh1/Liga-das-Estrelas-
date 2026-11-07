@@ -14,6 +14,15 @@ export interface FirebaseConfigInput {
 
 const STORAGE_KEY = 'baba_stats_firebase_config_v1';
 
+const DEFAULT_FIREBASE_CONFIG: FirebaseConfigInput = {
+  apiKey: 'AIzaSyBEZ2oEsz4xNje7nrNap9S6UKwPpX21aKU',
+  authDomain: 'liga-das-estrelas.firebaseapp.com',
+  projectId: 'liga-das-estrelas',
+  storageBucket: 'liga-das-estrelas.firebasestorage.app',
+  messagingSenderId: '588239521137',
+  appId: '1:588239521137:web:924a5cff8d73bfa15ae2d0',
+};
+
 export function getResolvedFirebaseConfig(): FirebaseConfigInput | null {
   const envApiKey = import.meta.env.VITE_FIREBASE_API_KEY;
   const envProjectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
@@ -30,17 +39,8 @@ export function getResolvedFirebaseConfig(): FirebaseConfigInput | null {
     };
   }
 
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as FirebaseConfigInput;
-    if (parsed.apiKey && parsed.projectId) {
-      return parsed;
-    }
-  } catch {
-    // ignore invalid json
-  }
-  return null;
+  // Fallback direto com a configuração oficial da Liga das Estrelas (permite rodar na Vercel sem configuração manual)
+  return DEFAULT_FIREBASE_CONFIG;
 }
 
 export function saveCustomFirebaseConfig(config: FirebaseConfigInput | null) {
