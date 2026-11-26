@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Check, ClipboardCopy, ClipboardPaste, RotateCcw, X } from 'lucide-react';
+import { ArrowRight, Check, ClipboardCopy, ClipboardPaste, RotateCcw, X } from 'lucide-react';
 import { useBaba } from '../../context/BabaContext';
 import { babaService } from '../../services/babaService';
 import type { Pelada, Player, PresenceStatus } from '../../types/domain';
@@ -20,7 +20,7 @@ export function getPresenceGroups(pelada: Pelada, players: Player[]) {
   };
 }
 
-export const PresencePanel: React.FC<{ pelada: Pelada }> = ({ pelada }) => {
+export const PresencePanel: React.FC<{ pelada: Pelada; onGoToTeams?: () => void }> = ({ pelada, onGoToTeams }) => {
   const { snapshot, user, isAdmin, runAction, busyAction, pushToast } = useBaba();
   const [importOpen, setImportOpen] = useState(false);
   const [importText, setImportText] = useState('');
@@ -32,18 +32,7 @@ export const PresencePanel: React.FC<{ pelada: Pelada }> = ({ pelada }) => {
   if (!snapshot || !user || !groups) return null;
 
   const isFinished = pelada.status === 'finished';
-  const myStatus: PresenceStatus = pelada.confirmedPlayerIds.includes(user.playerId)
-    ? 'confirmed'
-    : pelada.declinedPlayerIds.includes(user.playerId)
-    ? 'declined'
-    : 'pending';
   const parsed = importText ? parseRosterText(importText, snapshot.players) : [];
-
-  const setOwn = (status: PresenceStatus) =>
-    runAction(
-      () => babaService.setOwnPresence(pelada.id, status),
-      status === 'confirmed' ? 'Presença confirmada! ⚽' : status === 'declined' ? 'Ausência registrada' : 'Resposta removida'
-    );
 
   const setFor = (playerId: string, status: PresenceStatus) =>
     runAction(() => babaService.setPlayerPresence(pelada.id, playerId, status));
@@ -150,46 +139,6 @@ export const PresencePanel: React.FC<{ pelada: Pelada }> = ({ pelada }) => {
 
   return (
     <div className="space-y-4">
-      {/* MINHA RESPOSTA */}
-      {!isFinished && (
-        <div className={`${cardClass} p-4 flex flex-wrap items-center justify-between gap-3`}>
-          <div>
-            <div className="text-sm font-bold text-white">Você vai jogar?</div>
-            <div className="text-xs text-slate-400">
-              {myStatus === 'confirmed'
-                ? 'Presença confirmada. Só confirmados entram no sorteio.'
-                : myStatus === 'declined'
-                ? 'Você informou que não vai.'
-                : 'Responda para o organizador montar os times.'}
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              disabled={busyAction || myStatus === 'confirmed'}
-              onClick={() => setOwn('confirmed')}
-              className={`px-4 py-2 rounded-xl text-xs font-extrabold transition cursor-pointer disabled:cursor-default ${
-                myStatus === 'confirmed'
-                  ? 'bg-lime-400 text-slate-950'
-                  : 'bg-lime-400/15 text-lime-300 border border-lime-400/40 hover:bg-lime-400/25'
-              }`}
-            >
-              ✓ Vou
-            </button>
-            <button
-              disabled={busyAction || myStatus === 'declined'}
-              onClick={() => setOwn('declined')}
-              className={`px-4 py-2 rounded-xl text-xs font-extrabold transition cursor-pointer disabled:cursor-default ${
-                myStatus === 'declined'
-                  ? 'bg-rose-500 text-white'
-                  : 'bg-rose-500/10 text-rose-300 border border-rose-500/30 hover:bg-rose-500/20'
-              }`}
-            >
-              ✕ Não vou
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* INDICADORES */}
       <div className="grid grid-cols-3 gap-2">
         <StatTile label="Confirmados" value={groups.confirmed.length} tone="lime" />
@@ -233,6 +182,26 @@ export const PresencePanel: React.FC<{ pelada: Pelada }> = ({ pelada }) => {
         <Column title="⏳ Pendentes" tone="text-yellow-300" list={groups.pending} status="pending" empty="Todos já responderam." />
         <Column title="❌ Ausentes" tone="text-rose-400" list={groups.declined} status="declined" empty="Nenhuma ausência." />
       </div>
+
+      {/* IR PARA OS TIMES */}
+      {onGoToTeams && (
+        <div className="space-y-1.5">
+          <button
+            type="button"
+            onClick={onGoToTeams}
+            disabled={groups.confirmed.length < 2}
+            className={`${primaryBtn} w-full !py-3.5 !text-sm`}
+          >
+            Presença confirmada — ir para os times
+            <ArrowRight className="w-4 h-4" />
+          </button>
+          <p className="text-center text-[11px] text-slate-500">
+            {groups.confirmed.length < 2
+              ? 'São necessários pelo menos 2 confirmados para montar os times.'
+              : `${groups.confirmed.length} confirmados${groups.pending.length ? ` • ${groups.pending.length} ainda sem resposta` : ''}`}
+          </p>
+        </div>
+      )}
     </div>
   );
 };

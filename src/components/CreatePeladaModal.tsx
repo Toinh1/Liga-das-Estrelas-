@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Check } from 'lucide-react';
+import { Check, ClipboardPaste, X } from 'lucide-react';
 import { useBaba } from '../context/BabaContext';
 import { babaService } from '../services/babaService';
 import { parseRosterText } from '../utils/rosterParser';
@@ -130,9 +130,20 @@ export const CreatePeladaModal: React.FC = () => {
           </div>
         </div>
 
-        <div className="rounded-2xl bg-[#1F1F1F] border border-white/5 p-3 space-y-2">
-          <button type="button" onClick={() => setShowImport((v) => !v)} className="text-xs font-bold text-lime-400 cursor-pointer">
-            {showImport ? '− Ocultar lista' : '+ Já tenho a lista de confirmados (opcional)'}
+        <div className="space-y-2">
+          <button
+            type="button"
+            onClick={() => setShowImport((v) => !v)}
+            aria-expanded={showImport}
+            className={`w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border text-sm font-extrabold transition cursor-pointer active:scale-[0.98] ${
+              showImport
+                ? 'bg-white/[0.06] border-white/10 text-slate-200 hover:bg-white/10'
+                : 'bg-lime-400/10 border-lime-400/40 text-lime-300 hover:bg-lime-400/20'
+            }`}
+          >
+            {showImport ? <X className="w-4 h-4" /> : <ClipboardPaste className="w-4 h-4" />}
+            {showImport ? 'Ocultar lista' : 'Já tenho a lista de confirmados'}
+            {!showImport && <span className="text-[11px] font-semibold text-lime-300/60">(opcional)</span>}
           </button>
           {showImport && (
             <>
@@ -159,7 +170,7 @@ export const CreatePeladaModal: React.FC = () => {
           )}
         </p>
 
-        <button type="submit" disabled={busyAction || selectedLineIds.length < 2} className={`${primaryBtn} w-full !py-3`}>
+        <button type="submit" disabled={busyAction || selectedLineIds.length < MIN_LINES} className={`${primaryBtn} w-full !py-3`}>
           {busyAction ? 'Criando...' : 'Criar pelada e abrir confirmações'}
         </button>
       </form>

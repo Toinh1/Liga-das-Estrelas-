@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import { Plus, Search, SlidersHorizontal, Users } from 'lucide-react';
+import { ListChecks, Plus, Search, SlidersHorizontal, Users } from 'lucide-react';
 import { PlayerDetailView } from '../components/PlayerDetailView';
+import { KeepOnlyPlayersModal } from '../components/KeepOnlyPlayersModal';
 import { PlayerFormModal } from '../components/PlayerFormModal';
 import {
   ChipGroup,
@@ -28,6 +29,7 @@ export const PlayersPage: React.FC = () => {
   const [status, setStatus] = useState<StatusFilter>('active');
   const [search, setSearch] = useState('');
   const [creating, setCreating] = useState(false);
+  const [keepOnlyOpen, setKeepOnlyOpen] = useState(false);
   const [ratingMode, setRatingMode] = useState(false);
 
   const players = useMemo(() => {
@@ -61,6 +63,9 @@ export const PlayersPage: React.FC = () => {
                 className={`${ghostBtn} ${ratingMode ? '!border-lime-400 !text-lime-400' : ''}`}
               >
                 <SlidersHorizontal className="w-4 h-4" /> Avaliação técnica
+              </button>
+              <button onClick={() => setKeepOnlyOpen(true)} className={ghostBtn}>
+                <ListChecks className="w-4 h-4" /> Manter só uma lista
               </button>
               <button onClick={() => setCreating(true)} className={primaryBtn}>
                 <Plus className="w-4 h-4" /> Jogador
@@ -149,6 +154,8 @@ export const PlayersPage: React.FC = () => {
           })}
         </div>
       )}
+
+      {keepOnlyOpen && <KeepOnlyPlayersModal onClose={() => setKeepOnlyOpen(false)} />}
 
       {creating && (
         <PlayerFormModal onClose={() => setCreating(false)} onSaved={(id) => openPlayerProfile(id)} />

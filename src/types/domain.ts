@@ -33,8 +33,8 @@ export const PELADA_DEFAULT_TIME = '20:00';
 export const PELADA_WEEKDAY_LABEL = 'Quarta';
 
 /** Quantidade de linhas (times) por pelada. */
-export const MIN_LINES = 2;
-export const MAX_LINES = 5;
+export const MIN_LINES = 3;
+export const MAX_LINES = 4;
 
 export interface UserAccount {
   id: string;

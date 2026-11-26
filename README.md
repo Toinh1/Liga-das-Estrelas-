@@ -48,7 +48,7 @@ históricos anteriores ao registro por partida) · `votes` · `awards` · `photo
   tamanho do número de times — cada pote entrega um jogador a cada time (o melhor do pote vai para o time
   mais fraco). Com 18 jogadores (3 de cada nível) e 3 times, cada time tem exatamente um jogador de cada
   nível, do 1 ao 6. Trocas de ajuste só acontecem dentro do mesmo pote. Prévia, “Refazer”, movimentação
-  manual e de 2 a 5 times.
+  manual e 3 ou 4 times.
 - **Classificação:** vitória 3, empate 1, derrota 0; desempate por vitórias, saldo e gols marcados.
   Sem jogos, não há campeão.
 - **Pontuação (Craque do mês/temporada e Ranking geral):** gol 3, assistência 2, vitória 1,

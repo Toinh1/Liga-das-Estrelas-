@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Check, ChevronDown, ClipboardCopy, Palette, RefreshCw, Scale, Shuffle, Trash2, X } from 'lucide-react';
 import { useBaba } from '../../context/BabaContext';
 import { babaService } from '../../services/babaService';
-import type { LineTeam, Pelada, Player } from '../../types/domain';
+import { MAX_LINES, MIN_LINES, type LineTeam, type Pelada, type Player } from '../../types/domain';
 import { formatShortDateBR } from '../../utils/statsEngine';
 import {
   balanceTeams,
@@ -101,7 +101,7 @@ export const TeamsPanel: React.FC<{ pelada: Pelada; onConfirmed?: () => void }> 
 
   // ----- validação do nivelamento (libera o botão de confirmar) -----
   const teamIssues: string[] = [];
-  if (lines.length < 2) teamIssues.push('Selecione pelo menos 2 linhas.');
+  if (lines.length < MIN_LINES) teamIssues.push(`Selecione ${MIN_LINES} ou ${MAX_LINES} linhas.`);
   if (confirmed.length < lines.length) teamIssues.push('Poucos confirmados para montar os times.');
   if (unassigned.length > 0) teamIssues.push(`${unassigned.length} confirmado(s) ainda sem time.`);
   const sizes = summaries.map((s) => s.playerIds.length);
@@ -129,7 +129,7 @@ export const TeamsPanel: React.FC<{ pelada: Pelada; onConfirmed?: () => void }> 
 
   // ----- ações -----
   const runDraw = () => {
-    if (lines.length < 2) return pushToast('Selecione pelo menos 2 linhas', undefined, 'error');
+    if (lines.length < MIN_LINES) return pushToast(`Selecione ${MIN_LINES} ou ${MAX_LINES} linhas`, undefined, 'error');
     if (confirmed.length < lines.length) {
       return pushToast('Poucos confirmados', `São necessários pelo menos ${lines.length} jogadores confirmados.`, 'error');
     }
@@ -227,7 +227,7 @@ export const TeamsPanel: React.FC<{ pelada: Pelada; onConfirmed?: () => void }> 
           </div>
           {canEdit && (
             <div className="flex items-center gap-1 p-1 rounded-xl bg-[#1F1F1F] border border-white/10">
-              {[2, 3, 4, 5].map((n) => (
+              {Array.from({ length: MAX_LINES - MIN_LINES + 1 }, (_, i) => MIN_LINES + i).map((n) => (
                 <button
                   key={n}
                   disabled={busyAction}

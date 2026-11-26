@@ -112,12 +112,26 @@ export const PlayerDetailView: React.FC<{
               <button
                 disabled={busyAction}
                 onClick={async () => {
-                  if (!window.confirm(`Excluir ${player.name}? Esta ação não pode ser desfeita.`)) return;
+                  const warnings = [
+                    babaService.playerHasHistory(player.id)
+                      ? '• Ele tem jogos registrados: o histórico continua, mas aparece como "Jogador removido".'
+                      : '',
+                    player.userId
+                      ? '• Ele tem conta no app: o perfil da conta também sai. Se entrar de novo, vira um jogador novo.'
+                      : '',
+                  ].filter(Boolean);
+                  const msg = [
+                    `Excluir ${player.nickname || player.name} do baba?`,
+                    ...(warnings.length ? ['', ...warnings] : []),
+                    '',
+                    'Esta ação não pode ser desfeita.',
+                  ].join('\n');
+                  if (!window.confirm(msg)) return;
                   const res = await runAction(() => babaService.deletePlayer(player.id), 'Jogador excluído');
                   if (res) onBack?.();
                 }}
                 className="w-9 h-9 rounded-full bg-white/[0.06] flex items-center justify-center cursor-pointer"
-                title="Excluir (apenas sem histórico)"
+                title="Excluir jogador"
                 aria-label="Excluir"
               >
                 <Trash2 className="w-4 h-4 text-rose-400" />

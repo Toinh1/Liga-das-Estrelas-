@@ -173,7 +173,15 @@ export const HomePeladaPage: React.FC = () => {
       />
 
       <div className="animate-fade-in" key={subTab}>
-        {subTab === 'presenca' && <PresencePanel pelada={pelada} />}
+        {subTab === 'presenca' && (
+          <PresencePanel
+            pelada={pelada}
+            onGoToTeams={() => {
+              setSubTab('times');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+          />
+        )}
         {subTab === 'times' && <TeamsPanel pelada={pelada} onConfirmed={() => { setSubTab('jogos'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} />}
         {subTab === 'jogos' && <MatchesPanel pelada={pelada} />}
         {subTab === 'gols' && <GoalsPanel pelada={pelada} />}

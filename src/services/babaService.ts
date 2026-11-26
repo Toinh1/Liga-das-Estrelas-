@@ -32,6 +32,7 @@ import { getDownloadURL, ref, uploadString } from 'firebase/storage';
 import {
   DEFAULT_SKILL,
   MAX_LINES,
+  MIN_LINES,
   PELADA_DEFAULT_TIME,
   type AppNotification,
   type DominantFoot,
@@ -603,7 +604,35 @@ export const babaService = {
     );
   },
 
-  /** Exclusão só para cadastros sem histórico. Com histórico, o jogador deve ser inativado. */
+  /** Indica se o jogador já aparece em peladas, jogos ou prêmios (usado para avisar antes de excluir). */
+  playerHasHistory(playerId: string): boolean {
+    const s = state();
+    return (
+      s.peladas.some(
+        (p) =>
+          p.status !== 'open' &&
+          (p.presentPlayerIds.includes(playerId) ||
+            Object.values(p.lineRosters).some((r) => r.includes(playerId)))
+      ) ||
+      s.matches.some(
+        (m) =>
+          m.homePlayerIds.includes(playerId) ||
+          m.awayPlayerIds.includes(playerId) ||
+          [...m.homeScorers, ...m.awayScorers, ...m.homeAssists, ...m.awayAssists].some(
+            (e) => e.playerId === playerId
+          )
+      ) ||
+      s.legacyGoals.some((g) => g.playerId === playerId) ||
+      s.awards.some((a) => a.winnerPlayerIds.includes(playerId))
+    );
+  },
+
+  /**
+   * Exclui o jogador. Ele sai das confirmações e times das peladas em aberto.
+   * Jogos já registrados continuam no histórico (com "Jogador removido" no lugar do nome).
+   * Se o jogador tiver conta, o perfil da conta também é removido do app; ao entrar de novo,
+   * a pessoa é cadastrada como jogador novo (o login em si só sai pelo Firebase Console).
+   */
   async deletePlayer(playerId: string): Promise<void> {
     const me = requireAdmin();
     return guard(async () => {
@@ -611,40 +640,87 @@ export const babaService = {
       const s = state();
       const player = s.players.find((p) => p.id === playerId);
       if (!player) fail('Jogador não encontrado.');
-      if (player.userId) fail('Este jogador possui conta de acesso. Inative-o em vez de excluir.');
-      const hasHistory =
-        s.peladas.some(
-          (p) =>
-            p.presentPlayerIds.includes(playerId) ||
-            Object.values(p.lineRosters).some((r) => r.includes(playerId))
-        ) ||
-        s.matches.some(
-          (m) =>
-            m.homePlayerIds.includes(playerId) ||
-            m.awayPlayerIds.includes(playerId) ||
-            [...m.homeScorers, ...m.awayScorers, ...m.homeAssists, ...m.awayAssists].some(
-              (e) => e.playerId === playerId
-            )
-        ) ||
-        s.legacyGoals.some((g) => g.playerId === playerId) ||
-        s.awards.some((a) => a.winnerPlayerIds.includes(playerId));
-      if (hasHistory) {
-        fail('Este jogador já tem histórico de partidas. Inative-o para preservar as estatísticas.');
+      if (player.userId) {
+        const account = s.users.find((u) => u.id === player.userId);
+        if (account?.role === 'admin') fail('Este jogador é administrador. Remova o acesso de admin antes de excluir.');
       }
-      // Remove de confirmações pendentes em peladas abertas
+
       const ops: ((b: ReturnType<typeof writeBatch>) => void)[] = [];
+      const now = nowIso();
       for (const p of s.peladas) {
-        if (p.confirmedPlayerIds.includes(playerId) || p.declinedPlayerIds.includes(playerId)) {
-          ops.push((b) =>
-            b.update(doc(db(), 'peladas', p.id), {
-              confirmedPlayerIds: arrayRemove(playerId),
-              declinedPlayerIds: arrayRemove(playerId),
-            })
-          );
-        }
+        if (p.status === 'finished') continue;
+        const inPelada =
+          p.confirmedPlayerIds.includes(playerId) ||
+          p.declinedPlayerIds.includes(playerId) ||
+          p.presentPlayerIds.includes(playerId) ||
+          Object.values(p.lineRosters).some((r) => r.includes(playerId));
+        if (!inPelada) continue;
+        const rosters: Record<string, string[]> = {};
+        for (const [lid, ids] of Object.entries(p.lineRosters)) rosters[lid] = ids.filter((id) => id !== playerId);
+        ops.push((b) =>
+          b.update(doc(db(), 'peladas', p.id), {
+            confirmedPlayerIds: arrayRemove(playerId),
+            declinedPlayerIds: arrayRemove(playerId),
+            presentPlayerIds: arrayRemove(playerId),
+            lineRosters: rosters,
+            updatedAt: now,
+          })
+        );
       }
+      if (player.userId) ops.push((b) => b.delete(doc(db(), 'users', player.userId!)));
       ops.push((b) => b.delete(doc(db(), 'players', playerId)));
       await commitInChunks(ops);
+    });
+  },
+
+  /**
+   * Mantém no baba apenas os jogadores informados.
+   * Fora da lista: sem conta → excluído; com conta → inativado (o login só sai pelo Firebase Console).
+   * O próprio admin nunca é afetado. Remove os afetados de confirmações e times das peladas em aberto.
+   */
+  async keepOnlyPlayers(keepIds: string[]): Promise<{ deleted: number; deactivated: number }> {
+    const me = requireAdmin();
+    return guard(async () => {
+      const keep = new Set([...keepIds, me.playerId]);
+      if (keepIds.length === 0) fail('A lista está vazia.');
+      const s = state();
+      const affected = s.players.filter((p) => !keep.has(p.id));
+      const toDelete = affected.filter((p) => !p.userId);
+      const toDeactivate = affected.filter((p) => p.userId && p.active);
+      const affectedIds = new Set(affected.map((p) => p.id));
+      const now = nowIso();
+      const ops: ((b: ReturnType<typeof writeBatch>) => void)[] = [];
+
+      for (const p of s.peladas) {
+        if (p.status === 'finished') continue;
+        const strip = (ids: string[]) => ids.filter((id) => !affectedIds.has(id));
+        const rosters: Record<string, string[]> = {};
+        for (const [lid, ids] of Object.entries(p.lineRosters)) rosters[lid] = strip(ids);
+        const changed =
+          p.confirmedPlayerIds.some((id) => affectedIds.has(id)) ||
+          p.declinedPlayerIds.some((id) => affectedIds.has(id)) ||
+          p.presentPlayerIds.some((id) => affectedIds.has(id));
+        if (!changed) continue;
+        ops.push((b) =>
+          b.update(doc(db(), 'peladas', p.id), {
+            confirmedPlayerIds: strip(p.confirmedPlayerIds),
+            declinedPlayerIds: strip(p.declinedPlayerIds),
+            presentPlayerIds: strip(p.presentPlayerIds),
+            lineRosters: rosters,
+            updatedAt: now,
+          })
+        );
+      }
+      for (const p of toDeactivate) {
+        ops.push((b) => b.update(doc(db(), 'players', p.id), { active: false, updatedAt: now }));
+      }
+      for (const p of toDelete) ops.push((b) => b.delete(doc(db(), 'players', p.id)));
+      // Os que ficam e estavam inativos voltam a ficar ativos
+      for (const p of s.players.filter((x) => keepIds.includes(x.id) && !x.active)) {
+        ops.push((b) => b.update(doc(db(), 'players', p.id), { active: true, updatedAt: now }));
+      }
+      await commitInChunks(ops);
+      return { deleted: toDelete.length, deactivated: toDeactivate.length };
     });
   },
 
@@ -777,7 +853,7 @@ export const babaService = {
     return guard(async () => {
       const title = input.title.trim() || 'Pelada de Quarta';
       if (!/^\d{4}-\d{2}-\d{2}$/.test(input.date)) fail('Data inválida.');
-      if (input.participatingLineIds.length < 2) fail('Escolha pelo menos 2 linhas.');
+      if (input.participatingLineIds.length < MIN_LINES) fail(`Escolha pelo menos ${MIN_LINES} linhas.`);
       if (input.participatingLineIds.length > MAX_LINES) fail(`O máximo é de ${MAX_LINES} linhas por pelada.`);
       const s = state();
       if (s.peladas.some((p) => p.date === input.date && norm(p.title) === norm(title))) {
@@ -919,7 +995,7 @@ export const babaService = {
     requireAdmin();
     return guard(async () => {
       const pelada = getPelada(peladaId);
-      if (lineIds.length < 2) fail('Mantenha pelo menos 2 linhas.');
+      if (lineIds.length < MIN_LINES) fail(`Mantenha pelo menos ${MIN_LINES} linhas.`);
       if (lineIds.length > MAX_LINES) fail(`O máximo é de ${MAX_LINES} linhas.`);
       const removed = pelada.participatingLineIds.filter((id) => !lineIds.includes(id));
       const hasMatches = state().matches.some(
