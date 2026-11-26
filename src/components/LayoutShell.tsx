@@ -18,6 +18,7 @@ import {
   X,
 } from 'lucide-react';
 import { useBaba } from '../context/BabaContext';
+import { BrandLogo, BrandWordmark } from './ui';
 import { babaService } from '../services/babaService';
 import type { AppSection } from '../types/domain';
 
@@ -42,16 +43,9 @@ const NAV_ITEMS: NavItem[] = [
 const MOBILE_PRIMARY: AppSection[] = ['dashboard', 'hoje', 'ranking'];
 
 export const Logo: React.FC<{ compact?: boolean }> = ({ compact }) => (
-  <div className="flex items-center gap-2.5">
-    <div
-      className={`${compact ? 'w-7 h-7 text-[11px] rounded-lg' : 'w-9 h-9 text-sm rounded-xl'} bg-lime-400 text-slate-950 flex items-center justify-center font-black shrink-0`}
-      aria-hidden
-    >
-      B3
-    </div>
-    <span className={`font-display font-extrabold text-white leading-tight ${compact ? 'text-sm' : 'text-base'}`}>
-      Futebol<span className="text-lime-400">B3</span>
-    </span>
+  <div className="flex items-center gap-2">
+    <BrandLogo size={compact ? 34 : 48} />
+    <BrandWordmark className={compact ? 'text-lg' : 'text-xl'} />
   </div>
 );
 

@@ -262,7 +262,7 @@ export const PlayerDetailView: React.FC<{
         <StackedBarChart
           data={evolution}
           series={[
-            { key: 'goals', label: 'Gols', color: '#A3E635' },
+            { key: 'goals', label: 'Gols', color: '#3FE21A' },
             { key: 'assists', label: 'Assistências', color: '#38BDF8' },
             { key: 'wins', label: 'Vitórias', color: '#52525B' },
           ]}

@@ -56,7 +56,7 @@ const LineColorPicker: React.FC<{
   </div>
 );
 
-export const TeamsPanel: React.FC<{ pelada: Pelada }> = ({ pelada }) => {
+export const TeamsPanel: React.FC<{ pelada: Pelada; onConfirmed?: () => void }> = ({ pelada, onConfirmed }) => {
   const { snapshot, isAdmin, runAction, busyAction, pushToast } = useBaba();
   /** Prévia do sorteio (ainda não gravada): lineId -> playerIds */
   const [draft, setDraft] = useState<Record<string, string[]> | null>(null);
@@ -98,6 +98,34 @@ export const TeamsPanel: React.FC<{ pelada: Pelada }> = ({ pelada }) => {
   const balanceIndex = computeBalanceIndex(summaries.filter((s) => s.playerIds.length > 0));
   const assigned = new Set(teamIds.flat());
   const unassigned = confirmed.filter((p) => !assigned.has(p.id));
+
+  // ----- validação do nivelamento (libera o botão de confirmar) -----
+  const teamIssues: string[] = [];
+  if (lines.length < 2) teamIssues.push('Selecione pelo menos 2 linhas.');
+  if (confirmed.length < lines.length) teamIssues.push('Poucos confirmados para montar os times.');
+  if (unassigned.length > 0) teamIssues.push(`${unassigned.length} confirmado(s) ainda sem time.`);
+  const sizes = summaries.map((s) => s.playerIds.length);
+  if (sizes.length && Math.max(...sizes) - Math.min(...sizes) > 1) {
+    teamIssues.push('Os times estão com tamanhos diferentes (mais de 1 jogador de diferença).');
+  }
+  for (let lv = 1; lv <= 6; lv++) {
+    const perTeam = summaries.map((s) => s.levelCounts[lv] ?? 0);
+    if (perTeam.length && Math.max(...perTeam) - Math.min(...perTeam) > 1) {
+      teamIssues.push(`Nível ${lv} desequilibrado: ${lines.map((l, i) => `${l.shortName} ${perTeam[i]}`).join(' • ')}.`);
+    }
+  }
+  const teamsReady = teamIssues.length === 0;
+
+  const confirmAndPlay = async () => {
+    if (!teamsReady) return;
+    if (draft) {
+      if (hasMatches && !window.confirm('Já existem jogos registrados. Alterar as linhas agora muda a escalação dos próximos jogos. Continuar?')) return;
+      const res = await runAction(() => babaService.saveLineRosters(pelada.id, draft), 'Times confirmados! Bora jogar ⚽');
+      if (!res) return;
+      setDraft(null);
+    }
+    onConfirmed?.();
+  };
 
   // ----- ações -----
   const runDraw = () => {
@@ -493,6 +521,34 @@ export const TeamsPanel: React.FC<{ pelada: Pelada }> = ({ pelada }) => {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* CONFIRMAR TIMES E IR PARA OS JOGOS */}
+      {canEdit && lines.length > 0 && (assigned.size > 0 || draft) && (
+        <div className="space-y-2">
+          {!teamsReady && (
+            <div className="px-4 py-3 rounded-2xl bg-amber-500/10 border border-amber-400/25 text-xs text-amber-200 space-y-0.5">
+              <div className="font-bold">Ajuste antes de confirmar:</div>
+              {teamIssues.map((t) => (
+                <div key={t}>• {t}</div>
+              ))}
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={confirmAndPlay}
+            disabled={!teamsReady || busyAction}
+            className={`${primaryBtn} w-full !py-3.5 !text-sm`}
+          >
+            <Check className="w-4 h-4" />
+            {draft ? 'Confirmar times e ir para os jogos' : 'Times confirmados — ir para os jogos'}
+          </button>
+          {teamsReady && (
+            <p className="text-center text-[11px] text-lime-300/80">
+              ✓ Todas as linhas estão com o nivelamento correto.
+            </p>
+          )}
         </div>
       )}
     </div>

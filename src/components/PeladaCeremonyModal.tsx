@@ -94,7 +94,7 @@ export const PeladaCeremonyModal: React.FC = () => {
               style={{
                 left: `${(i * 7 + 5) % 96}%`,
                 top: '-12px',
-                backgroundColor: i % 3 === 0 ? '#FACC15' : i % 3 === 1 ? '#A3E635' : '#38BDF8',
+                backgroundColor: i % 3 === 0 ? '#E9AE17' : i % 3 === 1 ? '#3FE21A' : '#38BDF8',
                 animation: `confettiDrop ${2.6 + (i % 4) * 0.6}s linear infinite`,
                 animationDelay: `${(i % 5) * 0.35}s`,
               }}

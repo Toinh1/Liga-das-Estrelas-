@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useBaba } from '../context/BabaContext';
+import { babaService } from '../services/babaService';
+import { BrandLogo } from '../components/ui';
 import type { PlayerPosition } from '../types/domain';
 
 export const AuthPage: React.FC = () => {
@@ -12,10 +14,27 @@ export const AuthPage: React.FC = () => {
   const [nickname, setNickname] = useState('');
   const [position, setPosition] = useState<PlayerPosition>('Meia');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [infoMsg, setInfoMsg] = useState<string | null>(null);
+  const [sendingReset, setSendingReset] = useState(false);
+
+  const handleForgotPassword = async () => {
+    setErrorMsg(null);
+    setInfoMsg(null);
+    setSendingReset(true);
+    try {
+      await babaService.sendPasswordReset(email);
+      setInfoMsg(`Enviamos um link para ${email.trim()}. Abra o e-mail (veja também o spam), crie a nova senha e volte para entrar.`);
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Não foi possível enviar o e-mail. Tente novamente.');
+    } finally {
+      setSendingReset(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
+    setInfoMsg(null);
     try {
       if (mode === 'login') {
         await login(email, password);
@@ -32,12 +51,8 @@ export const AuthPage: React.FC = () => {
       <div className="w-full max-w-sm space-y-6 animate-fade-in">
         {/* Logo */}
         <div className="text-center space-y-2">
-          <div className="w-14 h-14 rounded-2xl bg-lime-400 text-slate-950 flex items-center justify-center font-black text-xl mx-auto shadow-lg shadow-lime-400/20">
-            B3
-          </div>
-          <h1 className="font-display font-extrabold text-2xl text-white">
-            Futebol<span className="text-lime-400">B3</span>
-          </h1>
+          <BrandLogo size={168} className="mx-auto" />
+          <h1 className="sr-only">FutebolB3</h1>
           <p className="text-xs text-slate-400">Gestão do baba: presença, times, jogos e rankings</p>
         </div>
 
@@ -73,6 +88,11 @@ export const AuthPage: React.FC = () => {
           {errorMsg && (
             <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs text-center animate-fade-in">
               {errorMsg}
+            </div>
+          )}
+          {infoMsg && (
+            <div className="p-3 rounded-xl bg-lime-400/10 border border-lime-400/30 text-lime-200 text-xs text-center animate-fade-in">
+              {infoMsg}
             </div>
           )}
 
@@ -141,6 +161,16 @@ export const AuthPage: React.FC = () => {
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-3.5 py-2.5 rounded-xl bg-[#1F1F1F] border border-white/10 text-sm text-white focus:outline-none focus:border-lime-400"
             />
+            {mode === 'login' && (
+              <button
+                type="button"
+                onClick={handleForgotPassword}
+                disabled={sendingReset}
+                className="mt-2 text-[11px] font-bold text-lime-400 hover:underline cursor-pointer disabled:opacity-50"
+              >
+                {sendingReset ? 'Enviando...' : 'Esqueci minha senha'}
+              </button>
+            )}
           </div>
 
           <button

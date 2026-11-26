@@ -1,6 +1,7 @@
 import React from 'react';
 import { CreatePeladaModal } from './components/CreatePeladaModal';
 import { LayoutShell } from './components/LayoutShell';
+import { BrandLogo } from './components/ui';
 import { PeladaCeremonyModal } from './components/PeladaCeremonyModal';
 import { BabaProvider, useBaba } from './context/BabaContext';
 import { AuthPage } from './pages/AuthPage';
@@ -18,10 +19,8 @@ const AppRouter: React.FC = () => {
 
   if (loadingInitial) {
     return (
-      <div className="min-h-screen bg-[#0A0A0A] flex flex-col items-center justify-center gap-3">
-        <div className="w-12 h-12 rounded-2xl bg-lime-400 text-slate-950 flex items-center justify-center font-black text-lg animate-bounce">
-          B3
-        </div>
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center gap-3">
+        <BrandLogo size={120} className="animate-pulse" />
         <div className="text-xs font-bold text-slate-400">Carregando FutebolB3...</div>
       </div>
     );

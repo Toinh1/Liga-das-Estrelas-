@@ -415,7 +415,7 @@ export const RingProgress: React.FC<{ value: number; size?: number; label?: stri
           cy={size / 2}
           r={r}
           fill="none"
-          stroke="#A3E635"
+          stroke="#3FE21A"
           strokeWidth={3}
           strokeLinecap="round"
           strokeDasharray={c}
@@ -465,3 +465,27 @@ export function dayPeriod(time?: string): string {
   if (h < 18) return 'Tarde';
   return 'Noite';
 }
+
+// ---------------------------------------------------------------------------
+// Marca FutebolB3
+// ---------------------------------------------------------------------------
+
+/** Escudo oficial do baba. */
+export const BrandLogo: React.FC<{ size?: number; className?: string }> = ({ size = 40, className = '' }) => (
+  <img
+    src={size > 128 ? '/brand/icon-512.png' : '/brand/logo-256.png'}
+    alt="FutebolB3"
+    width={size}
+    height={size}
+    className={`shrink-0 object-contain mix-blend-screen ${className}`}
+    style={{ width: size, height: size }}
+  />
+);
+
+/** Nome no estilo do logo: "Futebol" prateado + "B3" verde-neon, itálico e pesado. */
+export const BrandWordmark: React.FC<{ className?: string }> = ({ className = 'text-base' }) => (
+  <span className={`font-display font-black italic tracking-tight leading-none ${className}`}>
+    <span className="text-chrome">Futebol</span>
+    <span className="text-neon">B3</span>
+  </span>
+);

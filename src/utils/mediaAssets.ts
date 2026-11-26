@@ -1,6 +1,6 @@
 export function createPlayerAvatarSvg(
   name: string,
-  accentHex = '#A3E635',
+  accentHex = '#3FE21A',
   bgHex = '#141B24'
 ): string {
   const parts = name.trim().split(/\s+/);

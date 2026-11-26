@@ -346,7 +346,7 @@ export const DashboardPage: React.FC = () => {
           <StackedBarChart
             data={view.chart}
             series={[
-              { key: 'goals', label: 'Gols', color: '#A3E635' },
+              { key: 'goals', label: 'Gols', color: '#3FE21A' },
               { key: 'matches', label: 'Jogos', color: '#3F3F46' },
             ]}
             emptyText="Registre jogos para ver a evolução."

@@ -1,9 +1,24 @@
 @import "tailwindcss";
 
+/* ============================================================
+   Identidade FutebolB3: verde-neon + dourado + prata sobre preto
+   (substitui as cores de destaque usadas em todo o app)
+   ============================================================ */
+@theme {
+  --color-lime-200: #c8f9b4;
+  --color-lime-300: #7cf05a;
+  --color-lime-400: #3fe21a;
+  --color-lime-500: #2fc40f;
+  --color-yellow-200: #fbe3a0;
+  --color-yellow-300: #f5c542;
+  --color-yellow-400: #e9ae17;
+  --font-brand: 'Exo 2', 'Plus Jakarta Sans', sans-serif;
+}
+
 @layer base {
   :root {
     --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-    --font-display: 'Space Grotesk', 'Plus Jakarta Sans', sans-serif;
+    --font-display: 'Exo 2', 'Plus Jakarta Sans', sans-serif;
   }
 
   body {
@@ -27,6 +42,16 @@
 
   h1, h2, h3, .font-display {
     font-family: var(--font-display);
+  }
+
+  /* Títulos no estilo do logo: pesado e em itálico */
+  h1 {
+    font-weight: 900;
+    font-style: italic;
+    letter-spacing: -0.01em;
+  }
+  .font-display {
+    font-weight: 800;
   }
 }
 
@@ -119,4 +144,19 @@
 }
 .no-scrollbar::-webkit-scrollbar {
   display: none;
+}
+
+/* Texto prateado (como "Futebol" no logo) e verde-neon (como "B3") */
+.text-chrome {
+  background: linear-gradient(180deg, #ffffff 0%, #d4d4d8 45%, #8b8b94 55%, #e4e4e7 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.text-neon {
+  color: #3fe21a;
+  text-shadow: 0 0 12px rgba(63, 226, 26, 0.45);
+}
+.brand-glow {
+  filter: drop-shadow(0 0 18px rgba(63, 226, 26, 0.28));
 }

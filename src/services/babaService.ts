@@ -8,6 +8,7 @@
 import {
   createUserWithEmailAndPassword,
   onAuthStateChanged,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut,
   type User as FirebaseUser,
@@ -115,6 +116,9 @@ export function translateFirebaseError(err: any): Error {
     return new Error('Este e-mail já está cadastrado. Use a aba "Entrar".');
   }
   if (code.includes('weak-password')) return new Error('A senha deve ter pelo menos 6 caracteres.');
+  if (code.includes('invalid-email') || code.includes('missing-email')) {
+    return new Error('Digite um e-mail válido.');
+  }
   if (code.includes('too-many-requests')) {
     return new Error('Muitas tentativas seguidas. Aguarde alguns minutos e tente novamente.');
   }
@@ -268,7 +272,7 @@ async function createAccountDocs(
         id: playerId,
         name,
         nickname: input.nickname?.trim() || undefined,
-        photoUrl: createPlayerAvatarSvg(name, '#A3E635'),
+        photoUrl: createPlayerAvatarSvg(name, '#3FE21A'),
         position: input.position,
         userId: uid,
         email,
@@ -429,6 +433,17 @@ export const babaService = {
     });
   },
 
+  /** Envia o e-mail de redefinição de senha do Firebase. */
+  async sendPasswordReset(email: string): Promise<void> {
+    return guard(async () => {
+      const clean = email.trim();
+      if (!clean) fail('Digite seu e-mail para receber o link de redefinição.');
+      const auth = getFirebaseServices().auth;
+      auth.languageCode = 'pt-BR';
+      await sendPasswordResetEmail(auth, clean);
+    });
+  },
+
   async logout(): Promise<void> {
     realtimeStore.stop();
     await signOut(getFirebaseServices().auth);
@@ -476,7 +491,7 @@ export const babaService = {
           const player: Player = {
             id,
             name: cleanName,
-            photoUrl: createPlayerAvatarSvg(cleanName, '#A3E635'),
+            photoUrl: createPlayerAvatarSvg(cleanName, '#3FE21A'),
             position: it.position || 'Meia',
             skillLevel: it.skillLevel !== undefined ? clampSkill(it.skillLevel) : DEFAULT_SKILL,
             active: true,
@@ -510,7 +525,7 @@ export const babaService = {
       const id = newId('p');
       const photoUrl = input.photoUrl
         ? await uploadImageIfDataUrl(`avatars/${id}/profile.jpg`, input.photoUrl)
-        : createPlayerAvatarSvg(name, '#A3E635');
+        : createPlayerAvatarSvg(name, '#3FE21A');
       const player: Player = clean({
         id,
         name,
