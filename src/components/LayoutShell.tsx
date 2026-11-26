@@ -1,14 +1,19 @@
 import React, { useState } from 'react';
 import {
+  Award,
   Bell,
   Camera,
   CheckCircle2,
+  LayoutDashboard,
   LogOut,
+  Menu,
+  Plus,
   PlusCircle,
   Sparkles,
   Swords,
   Trophy,
   User,
+  Users,
   Vote,
   X,
 } from 'lucide-react';
@@ -16,13 +21,39 @@ import { useBaba } from '../context/BabaContext';
 import { babaService } from '../services/babaService';
 import type { AppSection } from '../types/domain';
 
-const NAV_ITEMS: { id: AppSection; label: string; icon: React.ElementType }[] = [
+interface NavItem {
+  id: AppSection;
+  label: string;
+  icon: React.ElementType;
+}
+
+const NAV_ITEMS: NavItem[] = [
+  { id: 'dashboard', label: 'Início', icon: LayoutDashboard },
   { id: 'hoje', label: 'Pelada', icon: Swords },
+  { id: 'jogadores', label: 'Jogadores', icon: Users },
+  { id: 'ranking', label: 'Ranking', icon: Trophy },
+  { id: 'premiacoes', label: 'Premiações', icon: Award },
   { id: 'votacoes', label: 'Votação', icon: Vote },
   { id: 'galeria', label: 'Fotos', icon: Camera },
-  { id: 'ranking', label: 'Ranking', icon: Trophy },
   { id: 'perfil', label: 'Perfil', icon: User },
 ];
+
+/** Atalhos fixos na barra inferior do celular; o restante fica em "Mais". */
+const MOBILE_PRIMARY: AppSection[] = ['dashboard', 'hoje', 'ranking'];
+
+export const Logo: React.FC<{ compact?: boolean }> = ({ compact }) => (
+  <div className="flex items-center gap-2.5">
+    <div
+      className={`${compact ? 'w-7 h-7 text-[11px] rounded-lg' : 'w-9 h-9 text-sm rounded-xl'} bg-lime-400 text-slate-950 flex items-center justify-center font-black shrink-0`}
+      aria-hidden
+    >
+      B3
+    </div>
+    <span className={`font-display font-extrabold text-white leading-tight ${compact ? 'text-sm' : 'text-base'}`}>
+      Futebol<span className="text-lime-400">B3</span>
+    </span>
+  </div>
+);
 
 export const LayoutShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const {
@@ -40,39 +71,42 @@ export const LayoutShell: React.FC<{ children: React.ReactNode }> = ({ children 
   } = useBaba();
 
   const [notifOpen, setNotifOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
 
   if (!user || !snapshot) return null;
 
-  const unreadCount = snapshot.notifications.filter(
-    (n) => !n.readByUserIds.includes(user.id)
-  ).length;
+  const unreadCount = snapshot.notifications.filter((n) => !n.readByUserIds.includes(user.id)).length;
+  const votingIsOpen = snapshot.peladas.some((p) => p.votingStatus === 'open' && p.status !== 'finished');
+  const pendingPresence = activePelada && activePelada.status !== 'finished' &&
+    !activePelada.confirmedPlayerIds.includes(user.playerId) &&
+    !activePelada.declinedPlayerIds.includes(user.playerId);
 
-  const handleOpenNotifs = async () => {
-    setNotifOpen((prev) => !prev);
-    if (!notifOpen && unreadCount > 0) {
-      babaService.markNotificationsRead(user).then((snap) => {
-        if (snap) runAction(async () => snap);
-      });
+  const handleOpenNotifs = () => {
+    const opening = !notifOpen;
+    setNotifOpen(opening);
+    if (opening && unreadCount > 0) {
+      babaService.markNotificationsRead().catch(() => undefined);
     }
   };
 
-  const votingIsOpen = activePelada?.votingStatus === 'open';
+  const go = (id: AppSection) => {
+    setActiveSection(id);
+    setMoreOpen(false);
+  };
+
+  const badgeFor = (id: AppSection) =>
+    (id === 'votacoes' && votingIsOpen) || (id === 'hoje' && pendingPresence);
+
+  const moreItems = NAV_ITEMS.filter((i) => !MOBILE_PRIMARY.includes(i.id));
+  const moreActive = moreItems.some((i) => i.id === activeSection);
 
   return (
-    <div className="min-h-screen bg-[#090B0E] text-slate-100 flex flex-col lg:flex-row">
-      {/* MENU LATERAL NO COMPUTADOR — LIMPO COM 5 ITENS */}
-      <aside className="hidden lg:flex lg:flex-col lg:w-60 lg:fixed lg:inset-y-0 bg-[#0D1118] border-r border-white/[0.07] z-30">
+    <div className="min-h-screen bg-[#0A0A0A] text-slate-100 flex flex-col lg:flex-row">
+      {/* MENU LATERAL (DESKTOP) */}
+      <aside className="hidden lg:flex lg:flex-col lg:w-60 lg:fixed lg:inset-y-0 bg-[#101010] border-r border-white/[0.07] z-30">
         <div className="px-5 py-5 border-b border-white/[0.07]">
-          <button
-            onClick={() => setActiveSection('hoje')}
-            className="flex items-center gap-3 text-left cursor-pointer"
-          >
-            <div className="w-9 h-9 rounded-xl bg-lime-400 text-slate-950 flex items-center justify-center font-black text-lg shrink-0">
-              ⭐
-            </div>
-            <div className="font-display font-extrabold text-sm text-white leading-tight">
-              Liga das <span className="text-lime-400">Estrelas</span>
-            </div>
+          <button onClick={() => go('dashboard')} className="text-left cursor-pointer">
+            <Logo />
           </button>
         </div>
 
@@ -82,33 +116,29 @@ export const LayoutShell: React.FC<{ children: React.ReactNode }> = ({ children 
               onClick={() => setOpenCreatePeladaModal(true)}
               className="w-full py-2.5 px-3 rounded-xl bg-lime-400 hover:bg-lime-300 text-slate-950 font-extrabold text-xs flex items-center justify-center gap-2 transition cursor-pointer"
             >
-              <PlusCircle className="w-4 h-4" />
-              Nova Pelada
+              <PlusCircle className="w-4 h-4" /> Nova pelada
             </button>
           </div>
         )}
 
-        <nav className="flex-1 px-3 py-4 space-y-1">
+        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto" aria-label="Navegação principal">
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
             const active = activeSection === item.id;
             return (
               <button
                 key={item.id}
-                onClick={() => setActiveSection(item.id)}
-                className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-sm font-semibold transition cursor-pointer ${
-                  active
-                    ? 'bg-lime-400/15 text-lime-400'
-                    : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
+                onClick={() => go(item.id)}
+                aria-current={active ? 'page' : undefined}
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition cursor-pointer ${
+                  active ? 'bg-lime-400/15 text-lime-400' : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
                 }`}
               >
                 <span className="flex items-center gap-3">
-                  <Icon className="w-4.5 h-4.5" />
+                  <Icon className="w-[18px] h-[18px]" />
                   {item.label}
                 </span>
-                {item.id === 'votacoes' && votingIsOpen && (
-                  <span className="w-2 h-2 rounded-full bg-lime-400 animate-pulse" />
-                )}
+                {badgeFor(item.id) && <span className="w-2 h-2 rounded-full bg-lime-400 animate-pulse" />}
               </button>
             );
           })}
@@ -117,151 +147,186 @@ export const LayoutShell: React.FC<{ children: React.ReactNode }> = ({ children 
         <div className="p-4 border-t border-white/[0.07] flex items-center justify-between gap-2">
           <div className="min-w-0">
             <div className="text-xs font-bold text-white truncate">{user.name}</div>
-            <div className="text-[10px] text-slate-500">
-              {isAdmin ? 'Administrador' : 'Jogador'}
-            </div>
+            <div className="text-[10px] text-slate-500">{isAdmin ? 'Administrador' : 'Jogador'}</div>
           </div>
-          <button
-            onClick={logout}
-            title="Sair"
-            className="p-2 rounded-xl text-slate-400 hover:text-rose-400 transition cursor-pointer"
-          >
+          <button onClick={logout} title="Sair" className="p-2 rounded-xl text-slate-400 hover:text-rose-400 transition cursor-pointer">
             <LogOut className="w-4 h-4" />
           </button>
         </div>
       </aside>
 
-      {/* CONTEÚDO PRINCIPAL */}
+      {/* CONTEÚDO */}
       <div className="flex-1 lg:pl-60 flex flex-col min-h-screen pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))] lg:pb-8">
-        {/* TOPO SIMPLES E LIMPO */}
-        <header className="sticky top-0 z-20 bg-[#090B0E]/90 backdrop-blur-md border-b border-white/[0.06] px-3.5 sm:px-6 py-2.5 sm:py-3 pt-[calc(0.625rem+env(safe-area-inset-top,0px))]">
-          <div className="max-w-4xl mx-auto flex items-center justify-between">
-            <div className="flex items-center gap-2 lg:hidden">
-              <div className="w-7 h-7 rounded-lg bg-lime-400 text-slate-950 flex items-center justify-center font-black text-xs">
-                ⭐
-              </div>
-              <span className="font-display font-extrabold text-sm text-white">
-                Liga das <span className="text-lime-400">Estrelas</span>
-              </span>
-            </div>
-
+        <header className="sticky top-0 z-20 bg-[#0A0A0A]/90 backdrop-blur-md border-b border-white/[0.06] px-3.5 sm:px-6 py-2.5 sm:py-3 pt-[calc(0.625rem+env(safe-area-inset-top,0px))]">
+          <div className="max-w-5xl mx-auto flex items-center justify-between">
+            <button onClick={() => go('dashboard')} className="lg:hidden cursor-pointer">
+              <Logo compact />
+            </button>
             <div className="hidden lg:block text-sm font-bold text-slate-300">
-              ⭐ Liga das Estrelas ⭐
+              {NAV_ITEMS.find((i) => i.id === activeSection)?.label}
             </div>
 
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <button
-                  onClick={handleOpenNotifs}
-                  className="relative p-2 rounded-xl bg-[#131923] border border-white/10 text-slate-300 hover:text-white transition cursor-pointer"
-                >
-                  <Bell className="w-4 h-4" />
-                  {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-lime-400 text-slate-950 text-[10px] font-extrabold flex items-center justify-center">
-                      {unreadCount}
-                    </span>
-                  )}
-                </button>
+            <div className="relative">
+              <button
+                onClick={handleOpenNotifs}
+                aria-label={`Avisos${unreadCount ? ` (${unreadCount} novos)` : ''}`}
+                className="relative p-2 rounded-xl bg-[#1C1C1C] border border-white/10 text-slate-300 hover:text-white transition cursor-pointer"
+              >
+                <Bell className="w-4 h-4" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-lime-400 text-slate-950 text-[10px] font-extrabold flex items-center justify-center">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
 
-                {notifOpen && (
-                  <div className="absolute right-0 mt-2 w-72 sm:w-80 rounded-2xl bg-[#131923] border border-white/15 shadow-2xl overflow-hidden z-50 animate-fade-in">
-                    <div className="px-4 py-2.5 border-b border-white/10 flex items-center justify-between">
-                      <span className="text-xs font-bold text-white">Avisos</span>
-                      <div className="flex items-center gap-2">
-                        {isAdmin && snapshot.notifications.length > 0 && (
-                          <button
-                            onClick={() =>
-                              runAction(
-                                () => babaService.clearNotifications(user),
-                                'Avisos limpos!'
-                              )
-                            }
-                            className="text-[11px] font-bold text-rose-400 cursor-pointer"
-                          >
-                            Limpar
-                          </button>
-                        )}
+              {notifOpen && (
+                <div className="absolute right-0 mt-2 w-72 sm:w-80 rounded-2xl bg-[#1C1C1C] border border-white/15 shadow-2xl overflow-hidden z-50 animate-fade-in">
+                  <div className="px-4 py-2.5 border-b border-white/10 flex items-center justify-between">
+                    <span className="text-xs font-bold text-white">Avisos</span>
+                    <div className="flex items-center gap-2">
+                      {isAdmin && snapshot.notifications.length > 0 && (
                         <button
-                          onClick={() => setNotifOpen(false)}
-                          className="text-slate-400 hover:text-white cursor-pointer"
+                          onClick={() => runAction(() => babaService.clearNotifications(), 'Avisos limpos!')}
+                          className="text-[11px] font-bold text-rose-400 cursor-pointer"
                         >
-                          <X className="w-4 h-4" />
+                          Limpar
                         </button>
-                      </div>
-                    </div>
-                    <div className="max-h-64 overflow-y-auto divide-y divide-white/5">
-                      {snapshot.notifications.length === 0 ? (
-                        <div className="p-5 text-center text-xs text-slate-500">
-                          Nenhum aviso no momento.
-                        </div>
-                      ) : (
-                        snapshot.notifications.map((n) => (
-                          <div key={n.id} className="p-3">
-                            <div className="text-xs font-bold text-lime-400">{n.title}</div>
-                            <div className="text-xs text-slate-300 mt-0.5">{n.message}</div>
-                          </div>
-                        ))
                       )}
+                      <button onClick={() => setNotifOpen(false)} className="text-slate-400 hover:text-white cursor-pointer" aria-label="Fechar avisos">
+                        <X className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
-                )}
-              </div>
+                  <div className="max-h-72 overflow-y-auto divide-y divide-white/5">
+                    {snapshot.notifications.length === 0 ? (
+                      <div className="p-5 text-center text-xs text-slate-500">Nenhum aviso no momento.</div>
+                    ) : (
+                      snapshot.notifications.map((n) => (
+                        <div key={n.id} className={`p-3 ${n.readByUserIds.includes(user.id) ? '' : 'bg-lime-400/[0.04]'}`}>
+                          <div className="text-xs font-bold text-lime-400">{n.title}</div>
+                          <div className="text-xs text-slate-300 mt-0.5">{n.message}</div>
+                          <div className="text-[10px] text-slate-500 mt-1">
+                            {new Date(n.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </header>
 
-        <main className="flex-1 max-w-4xl w-full mx-auto px-3.5 sm:px-6 py-4 sm:py-5">
-          {children}
-        </main>
+        <main className="flex-1 max-w-5xl w-full mx-auto px-3.5 sm:px-6 py-4 sm:py-5">{children}</main>
       </div>
 
-      {/* BARRA INFERIOR NO CELULAR — 5 ABAS AMPLAS E FÁCEIS DE TOCAR COM SAFE-AREA */}
-      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-[#0D1118]/95 backdrop-blur-lg border-t border-white/10 px-2 pt-1 pb-[calc(0.4rem+env(safe-area-inset-bottom,0px))]">
-        <div className="grid grid-cols-5 gap-1 max-w-md mx-auto">
-          {NAV_ITEMS.map((item) => {
+      {/* BARRA INFERIOR (CELULAR) */}
+      <nav
+        className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-[#101010]/95 backdrop-blur-lg border-t border-white/10 px-2 pt-1 pb-[calc(0.4rem+env(safe-area-inset-bottom,0px))]"
+        aria-label="Navegação"
+      >
+        <div className="grid grid-cols-5 items-end max-w-md mx-auto">
+          {(['dashboard', 'hoje', 'CENTER', 'ranking', 'MORE'] as const).map((slot) => {
+            if (slot === 'CENTER') {
+              const CenterIcon = isAdmin ? Plus : Swords;
+              return (
+                <div key={slot} className="flex justify-center">
+                  <button
+                    onClick={() => {
+                      setMoreOpen(false);
+                      if (isAdmin) setOpenCreatePeladaModal(true);
+                      else go('hoje');
+                    }}
+                    aria-label={isAdmin ? 'Nova pelada' : 'Pelada atual'}
+                    className="-mt-5 w-14 h-14 rounded-2xl rotate-45 bg-lime-400 text-slate-950 flex items-center justify-center shadow-lg shadow-lime-400/30 active:scale-95 transition cursor-pointer"
+                  >
+                    <CenterIcon className="w-6 h-6 -rotate-45" strokeWidth={2.6} />
+                  </button>
+                </div>
+              );
+            }
+            if (slot === 'MORE') {
+              return (
+                <button
+                  key={slot}
+                  onClick={() => setMoreOpen((v) => !v)}
+                  className={`relative flex flex-col items-center justify-center py-2 active:scale-95 transition cursor-pointer select-none ${
+                    moreActive || moreOpen ? 'text-lime-400' : 'text-slate-500'
+                  }`}
+                  aria-expanded={moreOpen}
+                >
+                  <Menu className="w-5 h-5" />
+                  <span className="text-[10px] font-bold mt-1">Mais</span>
+                  {votingIsOpen && <span className="absolute top-1.5 right-4 w-2 h-2 rounded-full bg-lime-400 animate-ping" />}
+                </button>
+              );
+            }
+            const item = NAV_ITEMS.find((i) => i.id === slot)!;
             const Icon = item.icon;
-            const active = activeSection === item.id;
+            const active = activeSection === slot;
             return (
               <button
-                key={item.id}
-                onClick={() => setActiveSection(item.id)}
-                className={`relative flex flex-col items-center justify-center py-2 active:scale-95 rounded-xl transition cursor-pointer select-none ${
-                  active ? 'text-lime-400 bg-lime-400/10' : 'text-slate-400 hover:text-slate-200'
+                key={slot}
+                onClick={() => go(slot)}
+                aria-current={active ? 'page' : undefined}
+                className={`relative flex flex-col items-center justify-center py-2 active:scale-95 transition cursor-pointer select-none ${
+                  active ? 'text-lime-400' : 'text-slate-500 hover:text-slate-300'
                 }`}
               >
                 <Icon className="w-5 h-5 shrink-0" />
-                <span className="text-[10px] font-bold mt-0.5 tracking-tight">{item.label}</span>
-                {item.id === 'votacoes' && votingIsOpen && (
-                  <span className="absolute top-1.5 right-3 w-2 h-2 rounded-full bg-lime-400 animate-ping" />
-                )}
+                <span className="text-[10px] font-bold mt-1 tracking-tight">{item.label}</span>
+                {badgeFor(slot) && <span className="absolute top-1.5 right-4 w-2 h-2 rounded-full bg-lime-400 animate-ping" />}
               </button>
             );
           })}
         </div>
       </nav>
 
-      {/* TOASTS DISCRETOS */}
-      <div className="fixed top-14 right-4 z-50 flex flex-col gap-2 max-w-xs w-[calc(100%-2rem)] pointer-events-none">
+      {moreOpen && (
+        <div className="lg:hidden fixed inset-0 z-[25] bg-black/60" onClick={() => setMoreOpen(false)}>
+          <div
+            className="absolute bottom-[calc(4.2rem+env(safe-area-inset-bottom,0px))] inset-x-3 rounded-3xl bg-[#171717] border border-white/10 p-3 grid grid-cols-2 gap-2 animate-fade-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {moreItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => go(item.id)}
+                  className={`flex items-center gap-2.5 px-3.5 py-3 rounded-2xl text-sm font-bold cursor-pointer ${
+                    activeSection === item.id ? 'bg-lime-400/15 text-lime-400' : 'bg-white/[0.04] text-slate-200'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" /> {item.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* TOASTS */}
+      <div className="fixed top-14 right-4 z-[60] flex flex-col gap-2 max-w-xs w-[calc(100%-2rem)] pointer-events-none" aria-live="polite">
         {toasts.map((t) => (
           <div
             key={t.id}
-            className={`pointer-events-auto p-3 rounded-xl border shadow-xl backdrop-blur-md flex items-center gap-2.5 animate-fade-in ${
-              t.variant === 'error'
-                ? 'bg-rose-950/95 border-rose-500/40 text-rose-100'
-                : 'bg-[#121C16]/95 border-lime-400/40 text-slate-100'
+            className={`pointer-events-auto p-3 rounded-xl border shadow-xl backdrop-blur-md flex items-start gap-2.5 animate-fade-in ${
+              t.variant === 'error' ? 'bg-rose-950/95 border-rose-500/40 text-rose-100' : 'bg-[#151A10]/95 border-lime-400/40 text-slate-100'
             }`}
           >
             {t.variant === 'info' ? (
-              <Sparkles className="w-4 h-4 text-sky-400 shrink-0" />
+              <Sparkles className="w-4 h-4 text-sky-400 shrink-0 mt-0.5" />
             ) : (
-              <CheckCircle2
-                className={`w-4 h-4 shrink-0 ${
-                  t.variant === 'error' ? 'text-rose-400' : 'text-lime-400'
-                }`}
-              />
+              <CheckCircle2 className={`w-4 h-4 shrink-0 mt-0.5 ${t.variant === 'error' ? 'text-rose-400' : 'text-lime-400'}`} />
             )}
-            <div className="flex-1 min-w-0 text-xs font-bold">{t.title}</div>
-            <button onClick={() => dismissToast(t.id)} className="text-slate-400">
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-bold">{t.title}</div>
+              {t.message && <div className="text-[11px] opacity-80 mt-0.5">{t.message}</div>}
+            </div>
+            <button onClick={() => dismissToast(t.id)} className="text-slate-400 cursor-pointer" aria-label="Fechar">
               <X className="w-3.5 h-3.5" />
             </button>
           </div>

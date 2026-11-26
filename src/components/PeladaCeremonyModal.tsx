@@ -64,7 +64,7 @@ export const PeladaCeremonyModal: React.FC = () => {
       .join('\n');
 
     const summaryText = [
-      `⭐ *LIGA DAS ESTRELAS — RESUMO OFICIAL* ⭐`,
+      `⚽ *FUTEBOLB3 — RESUMO OFICIAL* ⚽`,
       `📅 *${pelada.title}* (${formatDateBR(pelada.date)})`,
       ``,
       `🥇 *LINHA CAMPEÃ:* ${championLine?.name || 'A definir'}`,
@@ -160,7 +160,7 @@ export const PeladaCeremonyModal: React.FC = () => {
             {championPlayers.length > 0 && (
               <div className="pt-2">
                 <p className="text-[11px] uppercase tracking-wider text-slate-400 mb-2">
-                  Elenco Campeão de Sábado
+                  Elenco Campeão
                 </p>
                 <div className="flex flex-wrap justify-center gap-2">
                   {championPlayers.map((cp) => (
@@ -309,7 +309,7 @@ export const PeladaCeremonyModal: React.FC = () => {
 
           {/* Classificação Final das Linhas + Foto Oficial */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            <div className="rounded-2xl bg-[#11161F] border border-white/10 overflow-hidden">
+            <div className="rounded-2xl bg-[#161616] border border-white/10 overflow-hidden">
               <div className="px-4 py-3 border-b border-white/10 flex items-center gap-2">
                 <Medal className="w-4 h-4 text-yellow-400" />
                 <h3 className="text-sm font-bold text-white">Classificação Final das Linhas</h3>
@@ -360,7 +360,7 @@ export const PeladaCeremonyModal: React.FC = () => {
             </div>
 
             {/* Foto oficial da rodada */}
-            <div className="rounded-2xl bg-[#11161F] border border-white/10 overflow-hidden flex flex-col">
+            <div className="rounded-2xl bg-[#161616] border border-white/10 overflow-hidden flex flex-col">
               <div className="px-4 py-3 border-b border-white/10 flex items-center gap-2">
                 <Camera className="w-4 h-4 text-lime-400" />
                 <h3 className="text-sm font-bold text-white">Foto Oficial da Rodada</h3>

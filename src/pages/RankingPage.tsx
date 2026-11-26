@@ -1,382 +1,280 @@
 import React, { useMemo, useState } from 'react';
+import { CalendarRange, ExternalLink, Lock, Plus, Trophy } from 'lucide-react';
+import { StandingsTable } from '../components/StandingsTable';
 import {
-  Camera,
-  Edit3,
-  ExternalLink,
-  Plus,
-  Trash2,
-  Trophy,
-  X,
-} from 'lucide-react';
-import { LineBadge } from '../components/LineBadge';
+  ChipGroup,
+  EmptyState,
+  PageHeader,
+  PeriodSelect,
+  PlayerAvatar,
+  SegmentedTabs,
+  cardClass,
+  ghostBtn,
+  inputClass,
+  playerLabel,
+  primaryBtn,
+} from '../components/ui';
 import { useBaba } from '../context/BabaContext';
 import { babaService } from '../services/babaService';
-import type { Player, PlayerPosition } from '../types/domain';
-import { fileToCompressedDataUrl } from '../utils/mediaAssets';
-import { computeAllTimeLineStandings, formatShortDateBR } from '../utils/statsEngine';
+import type { PlayerComputedStats } from '../types/domain';
+import { computePlayerScores, minParticipations, SCORE_WEIGHTS } from '../utils/awardsEngine';
+import {
+  computeAllTimeLineStandings,
+  computePeladaStandings,
+  computePlayersStatsForPeladas,
+  filterPeladasByPeriod,
+  formatShortDateBR,
+  listMonthsWithPeladas,
+  peladaInSeason,
+  playedPeladaIds,
+  todayISO,
+  type PeriodFilter,
+} from '../utils/statsEngine';
 
-type RankTab = 'jogadores' | 'linhas' | 'historico';
-type SortMetric = 'goals' | 'matchWins' | 'totalAwards' | 'participations';
+type RankTab = 'jogadores' | 'equipes' | 'historico' | 'temporadas';
+type Metric = 'geral' | 'gols' | 'assistencias' | 'vitorias' | 'aproveitamento' | 'participacoes';
 
-const POSITIONS: PlayerPosition[] = ['Goleiro', 'Defensor', 'Meia', 'Atacante'];
+const METRICS: { id: Metric; label: string; unit: string }[] = [
+  { id: 'geral', label: 'Geral', unit: 'pts' },
+  { id: 'gols', label: 'Artilharia', unit: 'gols' },
+  { id: 'assistencias', label: 'Assistências', unit: 'assist.' },
+  { id: 'vitorias', label: 'Vitórias', unit: 'vit.' },
+  { id: 'aproveitamento', label: 'Aproveitamento', unit: '%' },
+  { id: 'participacoes', label: 'Participações', unit: 'pres.' },
+];
 
 export const RankingPage: React.FC = () => {
   const {
-    user,
-    isAdmin,
     snapshot,
-    playerStatsMap,
-    setCeremonyPeladaId,
+    isAdmin,
+    openPlayerProfile,
     setSelectedPeladaId,
     setActiveSection,
+    setCeremonyPeladaId,
     runAction,
     busyAction,
   } = useBaba();
 
   const [tab, setTab] = useState<RankTab>('jogadores');
-  const [sortBy, setSortBy] = useState<SortMetric>('goals');
-
-  // Modal de Ficha / Edição / Novo Jogador
-  const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
-  const [editingPlayerMode, setEditingPlayerMode] = useState<'create' | 'edit' | null>(null);
-  const [formName, setFormName] = useState('');
-  const [formNick, setFormNick] = useState('');
-  const [formPos, setFormPos] = useState<PlayerPosition>('Meia');
-  const [formPhoto, setFormPhoto] = useState('');
-
-  const sortedPlayers = useMemo(() => {
-    if (!snapshot) return [];
-    return [...snapshot.players].sort((a, b) => {
-      const sa = playerStatsMap[a.id];
-      const sb = playerStatsMap[b.id];
-      const va = sa ? sa[sortBy] : 0;
-      const vb = sb ? sb[sortBy] : 0;
-      if (vb !== va) return vb - va;
-      if ((sb?.goals || 0) !== (sa?.goals || 0)) return (sb?.goals || 0) - (sa?.goals || 0);
-      return (a.nickname || a.name).localeCompare(b.nickname || b.name, 'pt-BR');
-    });
-  }, [snapshot, playerStatsMap, sortBy]);
-
-  if (!snapshot || !user) return null;
-
-  const allTimeLines = computeAllTimeLineStandings(
-    snapshot.peladas,
-    snapshot.lines,
-    snapshot.matches
+  const [metric, setMetric] = useState<Metric>('geral');
+  const activeSeason = snapshot?.seasons.find((s) => s.status === 'active');
+  const [period, setPeriod] = useState<PeriodFilter>(
+    activeSeason ? { kind: 'season', seasonId: activeSeason.id } : { kind: 'all' }
   );
+  const [seasonName, setSeasonName] = useState(String(new Date().getFullYear()));
+  const [seasonStart, setSeasonStart] = useState(todayISO());
+
+  const data = useMemo(() => {
+    if (!snapshot) return null;
+    const peladas = filterPeladasByPeriod(snapshot.peladas, snapshot.seasons, period);
+    const statsMap = computePlayersStatsForPeladas(
+      snapshot.players,
+      peladas,
+      snapshot.lines,
+      snapshot.matches,
+      snapshot.goals,
+      snapshot.awards
+    );
+    const played = playedPeladaIds(peladas, snapshot.matches);
+    const scores = computePlayerScores(statsMap, snapshot.votingSummaries, played);
+    return { peladas, statsMap, scores, min: minParticipations(played.length) };
+  }, [snapshot, period]);
+
+  if (!snapshot || !data) return null;
+
+  const months = listMonthsWithPeladas(snapshot.peladas);
   const lineMap = new Map(snapshot.lines.map((l) => [l.id, l]));
+  const playerMap = new Map(snapshot.players.map((p) => [p.id, p]));
 
-  const openCreateModal = () => {
-    setSelectedPlayer(null);
-    setFormName('');
-    setFormNick('');
-    setFormPos('Meia');
-    setFormPhoto('');
-    setEditingPlayerMode('create');
-  };
-
-  const openEditFromSelected = (p: Player) => {
-    setFormName(p.name);
-    setFormNick(p.nickname || '');
-    setFormPos(p.position);
-    setFormPhoto(p.photoUrl);
-    setEditingPlayerMode('edit');
-  };
-
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const dataUrl = await fileToCompressedDataUrl(file, 480, 0.85);
-    setFormPhoto(dataUrl);
-  };
-
-  const handleSavePlayer = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formName.trim()) return;
-
-    if (editingPlayerMode === 'create') {
-      await runAction(
-        () =>
-          babaService.createPlayer(user, {
-            name: formName.trim(),
-            nickname: formNick.trim() || undefined,
-            position: formPos,
-            photoUrl: formPhoto || undefined,
-          }),
-        'Jogador cadastrado! ⚽'
-      );
-    } else if (editingPlayerMode === 'edit' && selectedPlayer) {
-      await runAction(
-        () =>
-          babaService.updatePlayer(user, selectedPlayer.id, {
-            name: formName.trim(),
-            nickname: formNick.trim() || undefined,
-            position: formPos,
-            photoUrl: formPhoto || undefined,
-          }),
-        'Jogador atualizado!'
-      );
+  // ----- ranking de jogadores -----
+  const valueOf = (s: PlayerComputedStats): number => {
+    switch (metric) {
+      case 'geral':
+        return data.scores[s.playerId]?.score ?? 0;
+      case 'gols':
+        return s.goals;
+      case 'assistencias':
+        return s.assists;
+      case 'vitorias':
+        return s.matchWins;
+      case 'aproveitamento':
+        return s.efficiency;
+      case 'participacoes':
+        return s.participations;
     }
-
-    setEditingPlayerMode(null);
-    setSelectedPlayer(null);
   };
+  const needsMinimum = metric === 'aproveitamento';
+  const ranked = Object.values(data.statsMap)
+    .filter((s) => s.participations > 0 || s.matchesPlayed > 0)
+    .filter((s) => !needsMinimum || s.participations >= data.min)
+    .map((s) => ({ s, v: valueOf(s) }))
+    .sort((a, b) => b.v - a.v || b.s.goals - a.s.goals || b.s.matchWins - a.s.matchWins);
+  const unit = METRICS.find((m) => m.id === metric)!.unit;
+
+  // posição com empates ("1º, 1º, 3º")
+  const positions: number[] = [];
+  ranked.forEach((r, i) => {
+    positions.push(i > 0 && ranked[i - 1].v === r.v ? positions[i - 1] : i + 1);
+  });
+
+  // ----- equipes -----
+  const singlePelada = period.kind === 'pelada' ? data.peladas[0] : undefined;
+  const lineRows = singlePelada
+    ? computePeladaStandings(singlePelada, snapshot.lines, snapshot.matches)
+    : computeAllTimeLineStandings(data.peladas, snapshot.lines, snapshot.matches).filter(
+        (r) => r.played > 0 || (r.titles ?? 0) > 0
+      );
 
   return (
-    <div className="space-y-5">
-      {/* CABEÇALHO */}
-      <div className="p-4 sm:p-5 rounded-3xl bg-[#11161F] border border-white/[0.08] flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-lg sm:text-xl font-extrabold text-white">Ranking Geral</h1>
-          <p className="text-xs text-slate-400 mt-0.5">
-            {snapshot.players.length} atletas • {snapshot.peladas.length} pelada(s)
-          </p>
-        </div>
+    <div className="space-y-4">
+      <PageHeader
+        title="Rankings e classificação"
+        subtitle={`${data.peladas.length} pelada(s) no período • estatísticas atualizadas a cada jogo`}
+        actions={
+          tab !== 'temporadas' && (
+            <PeriodSelect
+              value={period}
+              onChange={setPeriod}
+              seasons={snapshot.seasons}
+              months={months}
+              peladas={tab === 'equipes' ? snapshot.peladas : undefined}
+            />
+          )
+        }
+      />
 
-        {isAdmin && tab === 'jogadores' && (
-          <button
-            onClick={openCreateModal}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-lime-400 hover:bg-lime-300 text-slate-950 font-extrabold text-xs cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            Jogador
-          </button>
-        )}
-      </div>
+      <SegmentedTabs
+        value={tab}
+        onChange={(t) => {
+          setTab(t);
+          if (t !== 'equipes' && period.kind === 'pelada') setPeriod({ kind: 'all' });
+        }}
+        options={[
+          { id: 'jogadores', label: 'Jogadores' },
+          { id: 'equipes', label: 'Equipes' },
+          { id: 'historico', label: 'Peladas' },
+          { id: 'temporadas', label: 'Temporadas' },
+        ]}
+      />
 
-      {/* 3 ABAS SIMPLES */}
-      <div className="grid grid-cols-3 gap-1.5 p-1.5 rounded-2xl bg-[#11161F] border border-white/[0.07]">
-        <button
-          onClick={() => setTab('jogadores')}
-          className={`py-2.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition cursor-pointer ${
-            tab === 'jogadores'
-              ? 'bg-lime-400 text-slate-950'
-              : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          ⚽ Jogadores
-        </button>
-        <button
-          onClick={() => setTab('linhas')}
-          className={`py-2.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition cursor-pointer ${
-            tab === 'linhas'
-              ? 'bg-lime-400 text-slate-950'
-              : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          👕 Linhas
-        </button>
-        <button
-          onClick={() => setTab('historico')}
-          className={`py-2.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition cursor-pointer ${
-            tab === 'historico'
-              ? 'bg-lime-400 text-slate-950'
-              : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          📅 Sábados
-        </button>
-      </div>
-
-      {/* ==================== ABA 1: JOGADORES ==================== */}
+      {/* ==================== JOGADORES ==================== */}
       {tab === 'jogadores' && (
         <div className="space-y-3">
-          {/* Filtro rápido de ordenação */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1">
-            {[
-              { id: 'goals' as SortMetric, label: 'Gols' },
-              { id: 'matchWins' as SortMetric, label: 'Vitórias' },
-              { id: 'totalAwards' as SortMetric, label: 'Troféus' },
-              { id: 'participations' as SortMetric, label: 'Presenças' },
-            ].map((opt) => (
-              <button
-                key={opt.id}
-                onClick={() => setSortBy(opt.id)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 cursor-pointer ${
-                  sortBy === opt.id
-                    ? 'bg-lime-400/15 text-lime-400 border border-lime-400/40'
-                    : 'bg-[#11161F] text-slate-400 border border-white/[0.06]'
-                }`}
-              >
-                Ordenar por {opt.label}
-              </button>
-            ))}
-          </div>
+          <ChipGroup value={metric} onChange={setMetric} options={METRICS.map((m) => ({ id: m.id, label: m.label }))} />
+          <p className="text-[11px] text-slate-500 px-1">
+            {metric === 'geral' &&
+              `Pontuação: gol ${SCORE_WEIGHTS.goal} • assistência ${SCORE_WEIGHTS.assist} • vitória ${SCORE_WEIGHTS.win} • voto de Melhor da Pelada ${SCORE_WEIGHTS.bestPlayerVote}.`}
+            {metric === 'aproveitamento' &&
+              `Pontos conquistados ÷ disputados nos jogos. Mínimo de ${data.min} presença(s) (50% das peladas do período).`}
+          </p>
 
-          <div className="rounded-3xl bg-[#11161F] border border-white/[0.08] overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-xs text-slate-500 border-b border-white/[0.05]">
-                    <th className="text-left py-2.5 pl-4 pr-2 w-8">#</th>
-                    <th className="text-left py-2.5 px-2">Atleta</th>
-                    <th className="text-center py-2.5 px-2">Gols</th>
-                    <th className="text-center py-2.5 px-2">Vit</th>
-                    <th className="text-center py-2.5 px-2">🏆</th>
-                    <th className="text-center py-2.5 pl-2 pr-4">Pel</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/[0.04]">
-                  {sortedPlayers.map((p, idx) => {
-                    const st = playerStatsMap[p.id];
-                    return (
-                      <tr
-                        key={p.id}
-                        onClick={() => {
-                          setSelectedPlayer(p);
-                          setEditingPlayerMode(null);
-                        }}
-                        className="hover:bg-white/[0.03] transition cursor-pointer"
-                      >
-                        <td className="py-3 pl-4 pr-2 text-xs font-bold text-slate-500">
-                          {idx + 1}º
-                        </td>
-                        <td className="py-3 px-2">
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <img
-                              src={p.photoUrl}
-                              alt={p.name}
-                              className="w-8 h-8 rounded-full object-cover shrink-0"
-                            />
-                            <div className="min-w-0">
-                              <div className="font-bold text-white text-sm truncate">
-                                {p.nickname || p.name}
-                              </div>
-                              <div className="text-[11px] text-slate-500">{p.position}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-3 px-2 text-center font-display font-extrabold text-lime-400">
-                          {st?.goals ?? 0}
-                        </td>
-                        <td className="py-3 px-2 text-center font-semibold text-emerald-400">
-                          {st?.matchWins ?? 0}
-                        </td>
-                        <td className="py-3 px-2 text-center font-semibold text-yellow-400">
-                          {st?.totalAwards ?? 0}
-                        </td>
-                        <td className="py-3 pl-2 pr-4 text-center text-slate-400 text-xs">
-                          {st?.participations ?? 0}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ==================== ABA 2: LINHAS ==================== */}
-      {tab === 'linhas' && (
-        <div className="rounded-3xl bg-[#11161F] border border-white/[0.08] overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-xs text-slate-500 border-b border-white/[0.05]">
-                  <th className="text-left py-2.5 pl-4 pr-2 w-8">#</th>
-                  <th className="text-left py-2.5 px-2">Linha</th>
-                  <th className="text-center py-2.5 px-2">Títulos</th>
-                  <th className="text-center py-2.5 px-2">PTS</th>
-                  <th className="text-center py-2.5 px-2">V</th>
-                  <th className="text-center py-2.5 pl-2 pr-4">SG</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/[0.04]">
-                {allTimeLines.map((row, idx) => (
-                  <tr key={row.lineId}>
-                    <td className="py-3 pl-4 pr-2 text-xs font-bold text-slate-500">
-                      {idx + 1}º
-                    </td>
-                    <td className="py-3 px-2">
-                      <LineBadge line={row} size="sm" />
-                    </td>
-                    <td className="py-3 px-2 text-center font-extrabold text-yellow-400">
-                      {row.titles || 0} 🏆
-                    </td>
-                    <td className="py-3 px-2 text-center font-display font-extrabold text-lime-400">
-                      {row.points}
-                    </td>
-                    <td className="py-3 px-2 text-center text-emerald-400">{row.wins}</td>
-                    <td className="py-3 pl-2 pr-4 text-center text-slate-300">
-                      {row.goalDifference > 0 ? `+${row.goalDifference}` : row.goalDifference}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* ==================== ABA 3: HISTÓRICO DE SÁBADOS ==================== */}
-      {tab === 'historico' && (
-        <div className="rounded-3xl bg-[#11161F] border border-white/[0.08] divide-y divide-white/[0.05] overflow-hidden">
-          {snapshot.peladas.length === 0 ? (
-            <div className="p-10 text-center text-xs text-slate-500">
-              Nenhuma pelada registrada ainda.
-            </div>
+          {ranked.length === 0 ? (
+            <EmptyState icon={<Trophy className="w-9 h-9" />} title="Sem estatísticas no período" text="Registre jogos para alimentar os rankings." />
           ) : (
-            snapshot.peladas.map((p) => {
+            <div className={`${cardClass} overflow-hidden`}>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm min-w-[460px]">
+                  <thead>
+                    <tr className="text-xs text-slate-500 border-b border-white/[0.05]">
+                      <th className="text-left py-2.5 pl-4 pr-2 w-10">#</th>
+                      <th className="text-left py-2.5 px-2">Atleta</th>
+                      <th className="text-center py-2.5 px-2 text-slate-200">{METRICS.find((m) => m.id === metric)!.label}</th>
+                      <th className="text-center py-2.5 px-2" title="Jogos">J</th>
+                      <th className="text-center py-2.5 px-2" title="Gols">G</th>
+                      <th className="text-center py-2.5 px-2" title="Assistências">A</th>
+                      <th className="text-center py-2.5 pl-2 pr-4" title="Aproveitamento">%</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/[0.04]">
+                    {ranked.map(({ s, v }, idx) => {
+                      const p = playerMap.get(s.playerId);
+                      const pos = positions[idx];
+                      return (
+                        <tr
+                          key={s.playerId}
+                          onClick={() => openPlayerProfile(s.playerId)}
+                          className={`hover:bg-white/[0.03] transition cursor-pointer ${pos === 1 ? 'bg-lime-400/[0.05]' : ''}`}
+                        >
+                          <td className="py-2.5 pl-4 pr-2 text-xs font-bold text-slate-400">
+                            {pos === 1 ? '🥇' : pos === 2 ? '🥈' : pos === 3 ? '🥉' : `${pos}º`}
+                          </td>
+                          <td className="py-2.5 px-2">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <PlayerAvatar player={p} size={30} />
+                              <div className="min-w-0">
+                                <div className="font-bold text-white text-sm truncate">{playerLabel(p)}</div>
+                                <div className="text-[11px] text-slate-500">{p?.position}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-2 text-center font-display font-extrabold text-lime-400 whitespace-nowrap">
+                            {v}
+                            <span className="text-[10px] text-slate-500 font-sans ml-0.5">{unit}</span>
+                          </td>
+                          <td className="py-2.5 px-2 text-center text-slate-300">{s.matchesPlayed}</td>
+                          <td className="py-2.5 px-2 text-center text-slate-300">{s.goals}</td>
+                          <td className="py-2.5 px-2 text-center text-slate-300">{s.assists}</td>
+                          <td className="py-2.5 pl-2 pr-4 text-center text-slate-400 text-xs">{s.efficiency}%</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ==================== EQUIPES ==================== */}
+      {tab === 'equipes' && (
+        <StandingsTable
+          rows={lineRows}
+          title={singlePelada ? `Classificação — ${singlePelada.title}` : 'Classificação geral das equipes'}
+          finished={singlePelada?.status === 'finished'}
+          showTitles={!singlePelada}
+        />
+      )}
+
+      {/* ==================== HISTÓRICO DE PELADAS ==================== */}
+      {tab === 'historico' && (
+        <div className={`${cardClass} divide-y divide-white/[0.05] overflow-hidden`}>
+          {data.peladas.length === 0 ? (
+            <div className="p-10 text-center text-xs text-slate-500">Nenhuma pelada no período.</div>
+          ) : (
+            data.peladas.map((p) => {
               const champ = p.championLineId ? lineMap.get(p.championLineId) : undefined;
               const matchCount = snapshot.matches.filter((m) => m.peladaId === p.id).length;
               return (
-                <div
-                  key={p.id}
-                  className="p-4 sm:px-5 flex flex-wrap items-center justify-between gap-3"
-                >
-                  <div className="space-y-1">
+                <div key={p.id} className="p-4 sm:px-5 flex flex-wrap items-center justify-between gap-3">
+                  <div className="space-y-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-white text-sm">{p.title}</span>
                       <span className="text-xs text-slate-500">{formatShortDateBR(p.date)}</span>
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-slate-400">
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
                       <span>{matchCount} jogo(s)</span>
-                      {champ && (
-                        <>
-                          <span>•</span>
-                          <span className="text-yellow-400 font-semibold">
-                            🏆 {champ.name}
-                          </span>
-                        </>
-                      )}
+                      <span>• {p.presentPlayerIds.length} atletas</span>
+                      {champ && <span className="text-yellow-400 font-semibold">• 🏆 {champ.name}</span>}
+                      {p.status !== 'finished' && <span className="text-lime-400 font-semibold">• em aberto</span>}
                     </div>
                   </div>
-
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => {
                         setSelectedPeladaId(p.id);
                         setActiveSection('hoje');
                       }}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-bold text-slate-200 cursor-pointer"
+                      className={ghostBtn}
                     >
-                      <ExternalLink className="w-3.5 h-3.5" />
-                      Abrir
+                      <ExternalLink className="w-3.5 h-3.5" /> Abrir
                     </button>
                     {p.status === 'finished' && (
                       <button
                         onClick={() => setCeremonyPeladaId(p.id)}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-yellow-400/15 text-yellow-300 text-xs font-bold cursor-pointer"
+                        className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-yellow-400/15 text-yellow-300 text-xs font-bold cursor-pointer"
                       >
-                        <Trophy className="w-3.5 h-3.5" />
-                        Resumo
-                      </button>
-                    )}
-                    {isAdmin && (
-                      <button
-                        onClick={() => {
-                          if (window.confirm(`Excluir ${p.title} permanentemente?`)) {
-                            runAction(
-                              () => babaService.deletePelada(user, p.id),
-                              'Pelada excluída'
-                            );
-                          }
-                        }}
-                        className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 cursor-pointer"
-                      >
-                        <Trash2 className="w-4 h-4" />
+                        <Trophy className="w-3.5 h-3.5" /> Resumo
                       </button>
                     )}
                   </div>
@@ -387,210 +285,138 @@ export const RankingPage: React.FC = () => {
         </div>
       )}
 
-      {/* ==================== MODAL FICHA / EDIÇÃO DE JOGADOR ==================== */}
-      {(selectedPlayer || editingPlayerMode === 'create') && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="w-full max-w-md rounded-3xl bg-[#121720] border border-white/10 overflow-hidden shadow-2xl my-auto animate-fade-in">
-            <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between">
-              <h2 className="text-sm font-bold text-white">
-                {editingPlayerMode === 'create'
-                  ? 'Novo Jogador'
-                  : editingPlayerMode === 'edit'
-                  ? 'Editar Jogador'
-                  : 'Ficha do Atleta'}
-              </h2>
-              <button
-                onClick={() => {
-                  setSelectedPlayer(null);
-                  setEditingPlayerMode(null);
-                }}
-                className="text-slate-400 hover:text-white cursor-pointer"
-              >
-                <X className="w-5 h-5" />
+      {/* ==================== TEMPORADAS ==================== */}
+      {tab === 'temporadas' && (
+        <div className="space-y-4">
+          {isAdmin && !activeSeason && (
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                await runAction(
+                  () => babaService.createSeason({ name: seasonName, startDate: seasonStart }),
+                  'Temporada aberta! 🏁'
+                );
+              }}
+              className={`${cardClass} p-4 flex flex-wrap items-end gap-3`}
+            >
+              <div className="flex-1 min-w-[140px]">
+                <label className="block text-xs text-slate-400 mb-1">Nome da temporada</label>
+                <input required maxLength={40} value={seasonName} onChange={(e) => setSeasonName(e.target.value)} className={inputClass} placeholder="Temporada 2026" />
+              </div>
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Início</label>
+                <input type="date" required value={seasonStart} onChange={(e) => setSeasonStart(e.target.value)} className={inputClass} />
+              </div>
+              <button type="submit" disabled={busyAction} className={primaryBtn}>
+                <Plus className="w-4 h-4" /> Abrir temporada
               </button>
-            </div>
+            </form>
+          )}
 
-            {editingPlayerMode ? (
-              <form onSubmit={handleSavePlayer} className="p-5 space-y-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-2xl bg-[#0B0F15] border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
-                    {formPhoto ? (
-                      <img src={formPhoto} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <Camera className="w-6 h-6 text-slate-500" />
-                    )}
-                  </div>
-                  <label className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-bold text-white cursor-pointer">
-                    Escolher Foto
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handlePhotoUpload}
-                      className="hidden"
-                    />
-                  </label>
-                </div>
-
-                <div>
-                  <label className="block text-xs text-slate-400 mb-1">Nome</label>
-                  <input
-                    type="text"
-                    required
-                    value={formName}
-                    onChange={(e) => setFormName(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#0B0F15] border border-white/10 text-sm text-white focus:outline-none focus:border-lime-400"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs text-slate-400 mb-1">Apelido (opcional)</label>
-                    <input
-                      type="text"
-                      value={formNick}
-                      onChange={(e) => setFormNick(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#0B0F15] border border-white/10 text-sm text-white focus:outline-none focus:border-lime-400"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-slate-400 mb-1">Posição</label>
-                    <select
-                      value={formPos}
-                      onChange={(e) => setFormPos(e.target.value as PlayerPosition)}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#0B0F15] border border-white/10 text-sm text-white"
-                    >
-                      {POSITIONS.map((pos) => (
-                        <option key={pos} value={pos}>
-                          {pos}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={busyAction}
-                  className="w-full py-2.5 rounded-2xl bg-lime-400 hover:bg-lime-300 text-slate-950 font-extrabold text-sm cursor-pointer"
-                >
-                  Salvar
-                </button>
-              </form>
-            ) : (
-              selectedPlayer &&
-              (() => {
-                const st = playerStatsMap[selectedPlayer.id];
-                return (
-                  <div className="p-5 space-y-5">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3.5">
-                        <img
-                          src={selectedPlayer.photoUrl}
-                          alt={selectedPlayer.name}
-                          className="w-16 h-16 rounded-2xl object-cover border border-white/15"
-                        />
-                        <div>
-                          <h3 className="text-base font-extrabold text-white">
-                            {selectedPlayer.nickname || selectedPlayer.name}
-                          </h3>
-                          {selectedPlayer.nickname && (
-                            <div className="text-xs text-slate-400">{selectedPlayer.name}</div>
-                          )}
-                          <span className="inline-block mt-1 px-2 py-0.5 rounded bg-white/10 text-[11px] font-semibold text-lime-400">
-                            {selectedPlayer.position}
-                          </span>
-                        </div>
+          {snapshot.seasons.length === 0 ? (
+            <EmptyState
+              icon={<CalendarRange className="w-9 h-9" />}
+              title="Nenhuma temporada criada"
+              text={
+                isAdmin
+                  ? 'Abra a primeira temporada. Peladas antigas dentro do período entram automaticamente nela.'
+                  : 'O administrador ainda não abriu temporadas.'
+              }
+            />
+          ) : (
+            snapshot.seasons.map((s) => {
+              const seasonPeladas = snapshot.peladas.filter((p) => peladaInSeason(p, s));
+              const stats = computePlayersStatsForPeladas(
+                snapshot.players,
+                seasonPeladas,
+                snapshot.lines,
+                snapshot.matches,
+                snapshot.goals,
+                snapshot.awards
+              );
+              const all = Object.values(stats);
+              const top = (fn: (x: PlayerComputedStats) => number) =>
+                [...all].sort((a, b) => fn(b) - fn(a)).find((x) => fn(x) > 0);
+              const scorer = top((x) => x.goals);
+              const winner = top((x) => x.matchWins);
+              const ids = new Set(seasonPeladas.map((p) => p.id));
+              const totalMatches = snapshot.matches.filter((m) => ids.has(m.peladaId)).length;
+              const participants = all.filter((x) => x.participations > 0).length;
+              return (
+                <div key={s.id} className={`${cardClass} p-4 sm:p-5 space-y-3`}>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-base font-extrabold text-white">{s.name}</h3>
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            s.status === 'active' ? 'bg-lime-400/15 text-lime-400' : 'bg-white/10 text-slate-400'
+                          }`}
+                        >
+                          {s.status === 'active' ? 'Em andamento' : 'Encerrada'}
+                        </span>
                       </div>
-
-                      {isAdmin && (
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            onClick={() => openEditFromSelected(selectedPlayer)}
-                            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 cursor-pointer"
-                            title="Editar"
-                          >
-                            <Edit3 className="w-4 h-4" />
-                          </button>
-                          {selectedPlayer.id !== user.playerId && (
-                            <button
-                              onClick={async () => {
-                                if (window.confirm(`Excluir ${selectedPlayer.name}?`)) {
-                                  await runAction(
-                                    () => babaService.deletePlayer(user, selectedPlayer.id),
-                                    'Jogador removido'
-                                  );
-                                  setSelectedPlayer(null);
-                                }
-                              }}
-                              className="p-2 rounded-xl bg-white/5 hover:bg-rose-500/20 text-rose-400 cursor-pointer"
-                              title="Excluir"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
+                      <div className="text-xs text-slate-400">
+                        {formatShortDateBR(s.startDate)} → {s.endDate ? formatShortDateBR(s.endDate) : 'hoje'}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          setPeriod({ kind: 'season', seasonId: s.id });
+                          setTab('jogadores');
+                        }}
+                        className={ghostBtn}
+                      >
+                        Ver rankings
+                      </button>
+                      {isAdmin && s.status === 'active' && (
+                        <button
+                          disabled={busyAction}
+                          onClick={() => {
+                            const end = window.prompt('Data de encerramento (AAAA-MM-DD):', todayISO());
+                            if (end && /^\d{4}-\d{2}-\d{2}$/.test(end)) {
+                              runAction(() => babaService.closeSeason(s.id, end), 'Temporada encerrada. Histórico preservado.');
+                            }
+                          }}
+                          className={ghostBtn}
+                        >
+                          <Lock className="w-3.5 h-3.5" /> Encerrar
+                        </button>
                       )}
                     </div>
-
-                    <div className="grid grid-cols-4 gap-2 text-center">
-                      <div className="p-2.5 rounded-2xl bg-[#0B0F15] border border-white/5">
-                        <div className="font-display font-extrabold text-lg text-white">
-                          {st?.participations ?? 0}
-                        </div>
-                        <div className="text-[10px] text-slate-500">Peladas</div>
-                      </div>
-                      <div className="p-2.5 rounded-2xl bg-[#0B0F15] border border-white/5">
-                        <div className="font-display font-extrabold text-lg text-lime-400">
-                          {st?.goals ?? 0}
-                        </div>
-                        <div className="text-[10px] text-slate-500">Gols</div>
-                      </div>
-                      <div className="p-2.5 rounded-2xl bg-[#0B0F15] border border-white/5">
-                        <div className="font-display font-extrabold text-lg text-emerald-400">
-                          {st?.matchWins ?? 0}
-                        </div>
-                        <div className="text-[10px] text-slate-500">Vitórias</div>
-                      </div>
-                      <div className="p-2.5 rounded-2xl bg-[#0B0F15] border border-white/5">
-                        <div className="font-display font-extrabold text-lg text-yellow-400">
-                          {st?.totalAwards ?? 0}
-                        </div>
-                        <div className="text-[10px] text-slate-500">Prêmios</div>
-                      </div>
-                    </div>
-
-                    {st && st.history.length > 0 && (
-                      <div className="space-y-2">
-                        <div className="text-xs font-bold text-slate-400">Últimas Peladas</div>
-                        <div className="max-h-44 overflow-y-auto space-y-1.5">
-                          {st.history.slice(0, 8).map((h) => (
-                            <div
-                              key={h.peladaId}
-                              className="px-3 py-2 rounded-xl bg-[#0B0F15] flex items-center justify-between text-xs"
-                            >
-                              <div>
-                                <span className="font-semibold text-white">{h.peladaTitle}</span>
-                                <span className="text-slate-500 ml-1.5">
-                                  {formatShortDateBR(h.date)}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2 text-slate-300">
-                                {h.goals > 0 && (
-                                  <span className="text-lime-400 font-bold">{h.goals}G</span>
-                                )}
-                                <span>{h.matchWins}V</span>
-                                {h.wonChampionship && <span>🏆</span>}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </div>
-                );
-              })()
-            )}
-          </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+                    {[
+                      ['Peladas', seasonPeladas.length],
+                      ['Jogos', totalMatches],
+                      ['Atletas', participants],
+                      ['Títulos decididos', seasonPeladas.filter((p) => p.championLineId).length],
+                    ].map(([label, value]) => (
+                      <div key={label} className="p-2.5 rounded-2xl bg-[#1F1F1F] border border-white/5">
+                        <div className="font-display font-extrabold text-white text-lg">{value}</div>
+                        <div className="text-[10px] text-slate-500">{label}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {(scorer || winner) && (
+                    <div className="flex flex-wrap gap-2 text-xs">
+                      {scorer && (
+                        <span className="px-3 py-1.5 rounded-xl bg-lime-400/10 text-lime-300 font-semibold">
+                          🔥 Artilheiro: {playerLabel(playerMap.get(scorer.playerId))} ({scorer.goals})
+                        </span>
+                      )}
+                      {winner && (
+                        <span className="px-3 py-1.5 rounded-xl bg-emerald-400/10 text-emerald-300 font-semibold">
+                          👑 Mais vitórias: {playerLabel(playerMap.get(winner.playerId))} ({winner.matchWins})
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
         </div>
       )}
     </div>

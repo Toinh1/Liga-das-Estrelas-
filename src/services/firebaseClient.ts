@@ -12,8 +12,11 @@ export interface FirebaseConfigInput {
   appId: string;
 }
 
-const STORAGE_KEY = 'baba_stats_firebase_config_v1';
-
+/**
+ * Configuração pública do projeto Firebase (a chave web do Firebase não é segredo;
+ * a proteção real dos dados está em firestore.rules e storage.rules).
+ * Pode ser sobrescrita pelas variáveis VITE_FIREBASE_* no arquivo .env.
+ */
 const DEFAULT_FIREBASE_CONFIG: FirebaseConfigInput = {
   apiKey: 'AIzaSyBEZ2oEsz4xNje7nrNap9S6UKwPpX21aKU',
   authDomain: 'liga-das-estrelas.firebaseapp.com',
@@ -23,7 +26,7 @@ const DEFAULT_FIREBASE_CONFIG: FirebaseConfigInput = {
   appId: '1:588239521137:web:924a5cff8d73bfa15ae2d0',
 };
 
-export function getResolvedFirebaseConfig(): FirebaseConfigInput | null {
+export function getResolvedFirebaseConfig(): FirebaseConfigInput {
   const envApiKey = import.meta.env.VITE_FIREBASE_API_KEY;
   const envProjectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
 
@@ -38,45 +41,7 @@ export function getResolvedFirebaseConfig(): FirebaseConfigInput | null {
       appId: import.meta.env.VITE_FIREBASE_APP_ID || '',
     };
   }
-
-  // Fallback direto com a configuração oficial da Liga das Estrelas (permite rodar na Vercel sem configuração manual)
   return DEFAULT_FIREBASE_CONFIG;
-}
-
-export function saveCustomFirebaseConfig(config: FirebaseConfigInput | null) {
-  cachedServices = null;
-  if (!config) {
-    localStorage.removeItem(STORAGE_KEY);
-  } else {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
-  }
-}
-
-export function parseFirebaseConfigSnippet(rawText: string): FirebaseConfigInput | null {
-  const extract = (key: string): string => {
-    const regex = new RegExp(`${key}\\s*[:=]\\s*["'\`]([^"'\`\\s,]+)["'\`]`, 'i');
-    return rawText.match(regex)?.[1]?.trim() || '';
-  };
-
-  const apiKey = extract('apiKey') || extract('VITE_FIREBASE_API_KEY');
-  const projectId = extract('projectId') || extract('VITE_FIREBASE_PROJECT_ID');
-  if (!apiKey || !projectId) return null;
-
-  return {
-    apiKey,
-    authDomain:
-      extract('authDomain') ||
-      extract('VITE_FIREBASE_AUTH_DOMAIN') ||
-      `${projectId}.firebaseapp.com`,
-    projectId,
-    storageBucket:
-      extract('storageBucket') ||
-      extract('VITE_FIREBASE_STORAGE_BUCKET') ||
-      `${projectId}.firebasestorage.app`,
-    messagingSenderId:
-      extract('messagingSenderId') || extract('VITE_FIREBASE_MESSAGING_SENDER_ID') || '',
-    appId: extract('appId') || extract('VITE_FIREBASE_APP_ID') || '',
-  };
 }
 
 export interface FirebaseServices {
@@ -88,12 +53,9 @@ export interface FirebaseServices {
 
 let cachedServices: FirebaseServices | null = null;
 
-export function getFirebaseServices(): FirebaseServices | null {
+export function getFirebaseServices(): FirebaseServices {
   if (cachedServices) return cachedServices;
-  const cfg = getResolvedFirebaseConfig();
-  if (!cfg) return null;
-
-  const app = getApps().length > 0 ? getApps()[0] : initializeApp(cfg);
+  const app = getApps().length > 0 ? getApps()[0] : initializeApp(getResolvedFirebaseConfig());
   cachedServices = {
     app,
     auth: getAuth(app),

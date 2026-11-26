@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { babaService } from '../services/babaService';
+import { realtimeStore } from '../services/realtimeStore';
 import type {
-  AppNotification,
   AppSection,
   AppSnapshot,
   Pelada,
@@ -31,6 +31,9 @@ interface BabaContextValue {
   activePelada: Pelada | undefined;
   selectedPelada: Pelada | undefined;
   playerStatsMap: Record<string, PlayerComputedStats>;
+  /** Jogador aberto na página individual (seção "jogadores"). */
+  viewPlayerId: string | null;
+  openPlayerProfile: (playerId: string | null) => void;
   ceremonyPeladaId: string | null;
   setCeremonyPeladaId: (id: string | null) => void;
   openCreatePeladaModal: boolean;
@@ -47,24 +50,30 @@ interface BabaContextValue {
     position: PlayerPosition;
   }) => Promise<void>;
   logout: () => Promise<void>;
-  refreshSnapshot: () => Promise<void>;
-  runAction: <T>(
-    fn: () => Promise<AppSnapshot | T>,
-    successTitle?: string,
-    successMessage?: string
-  ) => Promise<T | AppSnapshot | undefined>;
-  setSnapshotDirectly: (snap: AppSnapshot, maybeUser?: UserAccount) => void;
+  /**
+   * Executa uma ação de escrita com indicador de carregamento e feedback.
+   * Retorna o resultado da ação, ou `undefined` se falhou (o erro vira toast).
+   */
+  runAction: <T>(fn: () => Promise<T>, successTitle?: string, successMessage?: string) => Promise<
+    { ok: true; value: T } | undefined
+  >;
 }
 
 const BabaContext = createContext<BabaContextValue | null>(null);
+
+const pickDefaultPelada = (peladas: Pelada[]) =>
+  peladas.find((p) => p.status === 'in_progress') ||
+  peladas.find((p) => p.status === 'open') ||
+  peladas[0];
 
 export const BabaProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserAccount | null>(null);
   const [snapshot, setSnapshot] = useState<AppSnapshot | null>(null);
   const [loadingInitial, setLoadingInitial] = useState(true);
   const [busyAction, setBusyAction] = useState(false);
-  const [activeSection, setActiveSection] = useState<AppSection>('hoje');
+  const [activeSection, setActiveSectionState] = useState<AppSection>('dashboard');
   const [selectedPeladaId, setSelectedPeladaIdState] = useState<string | null>(null);
+  const [viewPlayerId, setViewPlayerId] = useState<string | null>(null);
   const [ceremonyPeladaId, setCeremonyPeladaId] = useState<string | null>(null);
   const [openCreatePeladaModal, setOpenCreatePeladaModal] = useState(false);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
@@ -79,10 +88,19 @@ export const BabaProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setToasts((prev) => [...prev.slice(-3), { id, title, message, variant }]);
       setTimeout(() => {
         setToasts((prev) => prev.filter((t) => t.id !== id));
-      }, 4500);
+      }, variant === 'error' ? 6500 : 4500);
     },
     []
   );
+
+  /** Liga a store em tempo real para o usuário autenticado. */
+  const startSession = useCallback(async (u: UserAccount) => {
+    setUser(u);
+    const first = await realtimeStore.start(u);
+    setSnapshot(first);
+    if (u.role === 'admin') void babaService.ensureYellowLine();
+    setSelectedPeladaIdState(pickDefaultPelada(first.peladas)?.id ?? null);
+  }, []);
 
   // Restaurar sessão ao abrir o aplicativo
   useEffect(() => {
@@ -90,16 +108,9 @@ export const BabaProvider: React.FC<{ children: React.ReactNode }> = ({ children
     (async () => {
       try {
         const restored = await babaService.restoreSession();
-        if (mounted && restored) {
-          setUser(restored.user);
-          setSnapshot(restored.snapshot);
-          const currentOrFirst =
-            restored.snapshot.peladas.find((p) => p.status !== 'finished') ||
-            restored.snapshot.peladas[0];
-          if (currentOrFirst) {
-            setSelectedPeladaIdState(currentOrFirst.id);
-          }
-        }
+        if (mounted && restored) await startSession(restored);
+      } catch (err) {
+        console.error('[FutebolB3] Falha ao restaurar sessão:', err);
       } finally {
         if (mounted) setLoadingInitial(false);
       }
@@ -107,60 +118,53 @@ export const BabaProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [startSession]);
 
-  const refreshSnapshot = useCallback(async () => {
-    if (!user) return;
-    try {
-      const snap = await babaService.fetchSnapshot(user);
-      setSnapshot(snap);
-      const me = snap.users.find((u) => u.id === user.id);
-      if (me) setUser(me);
-    } catch (err) {
-      console.error('Erro ao atualizar dados:', err);
-    }
-  }, [user]);
-
-  // Assinatura em tempo real (SSE local ou Firestore onSnapshot) para múltiplos jogadores simultâneos
+  // Snapshot em tempo real + avisos
   useEffect(() => {
     if (!user) return;
-    const unsub = babaService.subscribeRealtime(
-      user,
-      () => {
-        refreshSnapshot();
-      },
-      (notif: AppNotification) => {
-        pushToast(notif.title, notif.message, 'info');
+    const unsubSnap = realtimeStore.subscribe((snap) => {
+      setSnapshot(snap);
+      // Mantém o papel (admin/jogador) sincronizado se for alterado por outro admin
+      const me = snap.users.find((x) => x.id === user.id);
+      if (me && (me.role !== user.role || me.name !== user.name)) {
+        setUser(me);
+        realtimeStore.setUser(me);
       }
-    );
-    return unsub;
-  }, [user, refreshSnapshot, pushToast]);
+    });
+    const unsubNotif = realtimeStore.onNotification((n) => pushToast(n.title, n.message, 'info'));
+    return () => {
+      unsubSnap();
+      unsubNotif();
+    };
+  }, [user, pushToast]);
 
-  const setSelectedPeladaId = useCallback((id: string) => {
-    setSelectedPeladaIdState(id);
+  const setActiveSection = useCallback((sec: AppSection) => {
+    setActiveSectionState(sec);
+    if (sec !== 'jogadores') setViewPlayerId(null);
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0 });
   }, []);
+
+  const openPlayerProfile = useCallback((playerId: string | null) => {
+    setViewPlayerId(playerId);
+    setActiveSectionState('jogadores');
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0 });
+  }, []);
+
+  const setSelectedPeladaId = useCallback((id: string) => setSelectedPeladaIdState(id), []);
 
   // Garante que selectedPeladaId sempre aponte para uma pelada válida
   useEffect(() => {
     if (!snapshot) return;
-    if (
-      !selectedPeladaId ||
-      !snapshot.peladas.some((p) => p.id === selectedPeladaId)
-    ) {
-      const preferred =
-        snapshot.peladas.find((p) => p.status !== 'finished') || snapshot.peladas[0];
-      setSelectedPeladaIdState(preferred?.id ?? null);
+    if (!selectedPeladaId || !snapshot.peladas.some((p) => p.id === selectedPeladaId)) {
+      setSelectedPeladaIdState(pickDefaultPelada(snapshot.peladas)?.id ?? null);
     }
   }, [snapshot, selectedPeladaId]);
 
-  const activePelada = useMemo(() => {
-    if (!snapshot) return undefined;
-    return (
-      snapshot.peladas.find((p) => p.status === 'in_progress') ||
-      snapshot.peladas.find((p) => p.status === 'open') ||
-      snapshot.peladas[0]
-    );
-  }, [snapshot]);
+  const activePelada = useMemo(
+    () => (snapshot ? pickDefaultPelada(snapshot.peladas) : undefined),
+    [snapshot]
+  );
 
   const selectedPelada = useMemo(() => {
     if (!snapshot) return undefined;
@@ -183,13 +187,9 @@ export const BabaProvider: React.FC<{ children: React.ReactNode }> = ({ children
     async (email: string, password: string) => {
       setBusyAction(true);
       try {
-        const res = await babaService.login(email, password);
-        setUser(res.user);
-        setSnapshot(res.snapshot);
-        const preferred =
-          res.snapshot.peladas.find((p) => p.status !== 'finished') || res.snapshot.peladas[0];
-        setSelectedPeladaIdState(preferred?.id ?? null);
-        pushToast(`Bem-vindo, ${res.user.name.split(' ')[0]}! ⚽`, 'Bom jogo neste sábado!');
+        const u = await babaService.login(email, password);
+        await startSession(u);
+        pushToast(`Bem-vindo, ${u.name.split(' ')[0]}! ⚽`);
       } catch (err: any) {
         pushToast('Falha no login', err?.message || 'Verifique suas credenciais.', 'error');
         throw err;
@@ -197,7 +197,7 @@ export const BabaProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setBusyAction(false);
       }
     },
-    [pushToast]
+    [pushToast, startSession]
   );
 
   const register = useCallback(
@@ -210,9 +210,8 @@ export const BabaProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }) => {
       setBusyAction(true);
       try {
-        const res = await babaService.register(input);
-        setUser(res.user);
-        setSnapshot(res.snapshot);
+        const u = await babaService.register(input);
+        await startSession(u);
         pushToast('Conta criada com sucesso! 🎉', 'Seu perfil de atleta já está ativo.');
       } catch (err: any) {
         pushToast('Erro no cadastro', err?.message || 'Tente novamente.', 'error');
@@ -221,37 +220,24 @@ export const BabaProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setBusyAction(false);
       }
     },
-    [pushToast]
+    [pushToast, startSession]
   );
 
   const logout = useCallback(async () => {
     await babaService.logout();
     setUser(null);
     setSnapshot(null);
-    setActiveSection('hoje');
+    setViewPlayerId(null);
+    setActiveSectionState('dashboard');
   }, []);
 
   const runAction = useCallback(
-    async <T,>(
-      fn: () => Promise<AppSnapshot | T>,
-      successTitle?: string,
-      successMessage?: string
-    ): Promise<T | AppSnapshot | undefined> => {
+    async <T,>(fn: () => Promise<T>, successTitle?: string, successMessage?: string) => {
       setBusyAction(true);
       try {
-        const res = await fn();
-        if (res && typeof res === 'object' && 'peladas' in (res as any)) {
-          const snap = res as AppSnapshot;
-          setSnapshot(snap);
-          if (user) {
-            const me = snap.users.find((u) => u.id === user.id);
-            if (me) setUser(me);
-          }
-        }
-        if (successTitle) {
-          pushToast(successTitle, successMessage, 'success');
-        }
-        return res;
+        const value = await fn();
+        if (successTitle) pushToast(successTitle, successMessage, 'success');
+        return { ok: true as const, value };
       } catch (err: any) {
         pushToast('Não foi possível concluir', err?.message || 'Erro inesperado.', 'error');
         return undefined;
@@ -259,13 +245,8 @@ export const BabaProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setBusyAction(false);
       }
     },
-    [pushToast, user]
+    [pushToast]
   );
-
-  const setSnapshotDirectly = useCallback((snap: AppSnapshot, maybeUser?: UserAccount) => {
-    setSnapshot(snap);
-    if (maybeUser) setUser(maybeUser);
-  }, []);
 
   const value: BabaContextValue = {
     user,
@@ -280,6 +261,8 @@ export const BabaProvider: React.FC<{ children: React.ReactNode }> = ({ children
     activePelada,
     selectedPelada,
     playerStatsMap,
+    viewPlayerId,
+    openPlayerProfile,
     ceremonyPeladaId,
     setCeremonyPeladaId,
     openCreatePeladaModal,
@@ -290,9 +273,7 @@ export const BabaProvider: React.FC<{ children: React.ReactNode }> = ({ children
     login,
     register,
     logout,
-    refreshSnapshot,
     runAction,
-    setSnapshotDirectly,
   };
 
   return <BabaContext.Provider value={value}>{children}</BabaContext.Provider>;

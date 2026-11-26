@@ -4,8 +4,11 @@ import { LayoutShell } from './components/LayoutShell';
 import { PeladaCeremonyModal } from './components/PeladaCeremonyModal';
 import { BabaProvider, useBaba } from './context/BabaContext';
 import { AuthPage } from './pages/AuthPage';
+import { AwardsPage } from './pages/AwardsPage';
+import { DashboardPage } from './pages/DashboardPage';
 import { GalleryPage } from './pages/GalleryPage';
 import { HomePeladaPage } from './pages/HomePeladaPage';
+import { PlayersPage } from './pages/PlayersPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { RankingPage } from './pages/RankingPage';
 import { VotingPage } from './pages/VotingPage';
@@ -15,11 +18,11 @@ const AppRouter: React.FC = () => {
 
   if (loadingInitial) {
     return (
-      <div className="min-h-screen bg-[#090B0E] flex flex-col items-center justify-center gap-3">
-        <div className="w-12 h-12 rounded-2xl bg-lime-400 text-slate-950 flex items-center justify-center font-black text-2xl animate-bounce">
-          ⭐
+      <div className="min-h-screen bg-[#0A0A0A] flex flex-col items-center justify-center gap-3">
+        <div className="w-12 h-12 rounded-2xl bg-lime-400 text-slate-950 flex items-center justify-center font-black text-lg animate-bounce">
+          B3
         </div>
-        <div className="text-xs font-bold text-slate-400">Carregando Liga das Estrelas...</div>
+        <div className="text-xs font-bold text-slate-400">Carregando FutebolB3...</div>
       </div>
     );
   }
@@ -30,7 +33,10 @@ const AppRouter: React.FC = () => {
 
   return (
     <LayoutShell>
+      {activeSection === 'dashboard' && <DashboardPage />}
       {activeSection === 'hoje' && <HomePeladaPage />}
+      {activeSection === 'jogadores' && <PlayersPage />}
+      {activeSection === 'premiacoes' && <AwardsPage />}
       {activeSection === 'votacoes' && <VotingPage />}
       {activeSection === 'galeria' && <GalleryPage />}
       {activeSection === 'ranking' && <RankingPage />}

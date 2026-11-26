@@ -28,21 +28,21 @@ export const AuthPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#090B0E] text-slate-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[#0A0A0A] text-slate-100 flex items-center justify-center p-4">
       <div className="w-full max-w-sm space-y-6 animate-fade-in">
         {/* Logo */}
         <div className="text-center space-y-2">
-          <div className="w-14 h-14 rounded-2xl bg-lime-400 text-slate-950 flex items-center justify-center font-black text-3xl mx-auto shadow-lg shadow-lime-400/20">
-            ⭐
+          <div className="w-14 h-14 rounded-2xl bg-lime-400 text-slate-950 flex items-center justify-center font-black text-xl mx-auto shadow-lg shadow-lime-400/20">
+            B3
           </div>
           <h1 className="font-display font-extrabold text-2xl text-white">
-            Liga das <span className="text-lime-400">Estrelas</span>
+            Futebol<span className="text-lime-400">B3</span>
           </h1>
-          <p className="text-xs text-slate-400">Pelada Oficial de Sábado</p>
+          <p className="text-xs text-slate-400">Gestão do baba: presença, times, jogos e rankings</p>
         </div>
 
         {/* Alternador Entrar / Criar Conta */}
-        <div className="grid grid-cols-2 gap-1 p-1.5 rounded-2xl bg-[#11161F] border border-white/[0.08]">
+        <div className="grid grid-cols-2 gap-1 p-1.5 rounded-2xl bg-[#161616] border border-white/[0.08]">
           <button
             type="button"
             onClick={() => setMode('login')}
@@ -68,7 +68,7 @@ export const AuthPage: React.FC = () => {
         {/* Formulário Limpo */}
         <form
           onSubmit={handleSubmit}
-          className="p-6 rounded-3xl bg-[#11161F] border border-white/[0.08] space-y-4 shadow-2xl"
+          className="p-6 rounded-3xl bg-[#161616] border border-white/[0.08] space-y-4 shadow-2xl"
         >
           {errorMsg && (
             <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs text-center animate-fade-in">
@@ -86,7 +86,7 @@ export const AuthPage: React.FC = () => {
                   placeholder="Seu nome"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#0B0F15] border border-white/10 text-sm text-white focus:outline-none focus:border-lime-400"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#1F1F1F] border border-white/10 text-sm text-white focus:outline-none focus:border-lime-400"
                 />
               </div>
 
@@ -98,7 +98,7 @@ export const AuthPage: React.FC = () => {
                     placeholder="Opcional"
                     value={nickname}
                     onChange={(e) => setNickname(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B0F15] border border-white/10 text-sm text-white focus:outline-none focus:border-lime-400"
+                    className="w-full px-3 py-2.5 rounded-xl bg-[#1F1F1F] border border-white/10 text-sm text-white focus:outline-none focus:border-lime-400"
                   />
                 </div>
                 <div>
@@ -106,7 +106,7 @@ export const AuthPage: React.FC = () => {
                   <select
                     value={position}
                     onChange={(e) => setPosition(e.target.value as PlayerPosition)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B0F15] border border-white/10 text-sm text-white"
+                    className="w-full px-3 py-2.5 rounded-xl bg-[#1F1F1F] border border-white/10 text-sm text-white"
                   >
                     <option value="Goleiro">Goleiro</option>
                     <option value="Defensor">Defensor</option>
@@ -126,7 +126,7 @@ export const AuthPage: React.FC = () => {
               placeholder="seu@email.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-[#0B0F15] border border-white/10 text-sm text-white focus:outline-none focus:border-lime-400"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-[#1F1F1F] border border-white/10 text-sm text-white focus:outline-none focus:border-lime-400"
             />
           </div>
 
@@ -139,7 +139,7 @@ export const AuthPage: React.FC = () => {
               placeholder="••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-[#0B0F15] border border-white/10 text-sm text-white focus:outline-none focus:border-lime-400"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-[#1F1F1F] border border-white/10 text-sm text-white focus:outline-none focus:border-lime-400"
             />
           </div>
 

@@ -5,6 +5,8 @@ export interface EditableRosterItem {
   name: string;
   position: PlayerPosition;
   matchedPlayerId?: string;
+  /** Nível informado na lista (1 = melhor ... 6 = mais fraco). */
+  skillLevel?: number;
   isNew: boolean;
 }
 
@@ -34,11 +36,36 @@ export function matchExistingPlayer(rawName: string, players: Player[]): Player 
   });
 }
 
+/**
+ * Lê o nível escrito junto do nome: "Saladinha 2", "Saladinha - 2", "Saladinha (2)",
+ * "Saladinha N2", "Saladinha nível 2". Retorna o nome limpo e o nível (1 a 6).
+ */
+export function extractTrailingLevel(text: string): { name: string; level?: number } {
+  const prefixed = text.match(/^(.*\S)\s+(?:n[ií]vel|nv|lv|n)\s*[:\-]?\s*([1-6])\s*[)\]]?$/i);
+  if (prefixed) return { name: prefixed[1].trim(), level: Number(prefixed[2]) };
+  const plain = text.match(/^(.*?[^\d\s(\[\-–—:|])\s*[-–—:|]?\s*[(\[]?\s*([1-6])\s*[)\]]?$/);
+  if (plain) return { name: plain[1].trim(), level: Number(plain[2]) };
+  return { name: text };
+}
+
+/** "1 João / 2 Pedro / 3 ..." é numeração; "2 João / 1 Pedro / 2 ..." são níveis. */
+function detectLeadingBareNumbers(lines: string[]): 'numbering' | 'levels' | 'none' {
+  const nums = lines
+    .map((l) => l.trim().match(/^(\d{1,2})\s+(?=\D)/))
+    .filter((m): m is RegExpMatchArray => Boolean(m))
+    .map((m) => Number(m[1]));
+  if (nums.length < 2) return 'none';
+  const sequential = nums.every((n, i) => n === nums[0] + i);
+  if (sequential) return 'numbering';
+  return nums.every((n) => n >= 1 && n <= 6) ? 'levels' : 'none';
+}
+
 export function parseRosterText(text: string, existingPlayers: Player[]): EditableRosterItem[] {
   const lines = text.split(/\r?\n/);
   const result: EditableRosterItem[] = [];
   const seenKeys = new Set<string>();
   let inGoalkeeperSection = false;
+  const leadingMode = detectLeadingBareNumbers(lines);
 
   for (let i = 0; i < lines.length; i++) {
     const raw = lines[i].trim();
@@ -55,13 +82,21 @@ export function parseRosterText(text: string, existingPlayers: Player[]): Editab
       inGoalkeeperSection = false;
       continue;
     }
-    if (/^(lista da pelada|lista do baba|pelada de sabado|liga das estrelas)/i.test(lower) && raw.includes(':')) {
+    if (/^(lista da pelada|lista do baba|pelada de sabado|pelada de quarta|baba de quarta|liga das estrelas)/i.test(lower) && raw.includes(':')) {
       continue;
     }
 
     // Remove numeração inicial ("01.", "1 -", "1)", "✅", "•", "-")
-    let cleaned = raw
-      .replace(/^[\s✅☑️✔️⚽⭐🧤•\-–—*]+/, '')
+    let level: number | undefined;
+    let cleaned = raw.replace(/^[\s✅☑️✔️⚽⭐🧤•\-–—*]+/, '');
+    const bare = cleaned.match(/^(\d{1,2})\s+(?=\D)/);
+    if (bare && leadingMode === 'levels') {
+      level = Number(bare[1]);
+      cleaned = cleaned.slice(bare[0].length);
+    } else if (bare && leadingMode === 'numbering') {
+      cleaned = cleaned.slice(bare[0].length);
+    }
+    cleaned = cleaned
       .replace(/^\d{1,2}\s*[.\-–—):]\s*/, '')
       .replace(/^[\s✅☑️✔️⚽⭐•\-–—*]+/, '')
       .trim();
@@ -79,6 +114,13 @@ export function parseRosterText(text: string, existingPlayers: Player[]): Editab
 
     if (!cleaned) continue;
 
+    if (level === undefined) {
+      const lv = extractTrailingLevel(cleaned);
+      cleaned = lv.name;
+      level = lv.level;
+    }
+    if (!cleaned) continue;
+
     const matched = matchExistingPlayer(cleaned, existingPlayers);
     const dedupKey = matched ? `id:${matched.id}` : `name:${normalizeStr(cleaned)}`;
     if (seenKeys.has(dedupKey)) continue;
@@ -89,6 +131,7 @@ export function parseRosterText(text: string, existingPlayers: Player[]): Editab
       name: matched ? matched.nickname || matched.name : cleaned,
       position: isGk ? 'Goleiro' : matched?.position || 'Meia',
       matchedPlayerId: matched?.id,
+      skillLevel: level,
       isNew: !matched,
     });
   }

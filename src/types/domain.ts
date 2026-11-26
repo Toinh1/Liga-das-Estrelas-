@@ -2,6 +2,8 @@ export type UserRole = 'admin' | 'player';
 
 export type PlayerPosition = 'Goleiro' | 'Defensor' | 'Meia' | 'Atacante';
 
+export type DominantFoot = 'Direito' | 'Esquerdo' | 'Ambos';
+
 export type PeladaStatus = 'open' | 'in_progress' | 'finished';
 
 export type VotingStatus = 'not_started' | 'open' | 'closed';
@@ -10,12 +12,29 @@ export type VoteCategory = 'best_player' | 'best_goalkeeper';
 
 export type AwardCategory = 'best_player' | 'best_goalkeeper' | 'top_scorer';
 
+export type PresenceStatus = 'confirmed' | 'declined' | 'pending';
+
+export type SeasonStatus = 'active' | 'closed';
+
 export type NotificationType =
   | 'pelada_created'
   | 'presence_confirmed'
   | 'voting_open'
   | 'results_published'
   | 'pelada_closed';
+
+export const SKILL_MIN = 1;
+export const SKILL_MAX = 6;
+export const DEFAULT_SKILL = 3;
+
+/** Dia e horário padrão do baba: quartas-feiras (3 = quarta) a partir das 20h. */
+export const PELADA_WEEKDAY = 3;
+export const PELADA_DEFAULT_TIME = '20:00';
+export const PELADA_WEEKDAY_LABEL = 'Quarta';
+
+/** Quantidade de linhas (times) por pelada. */
+export const MIN_LINES = 2;
+export const MAX_LINES = 5;
 
 export interface UserAccount {
   id: string;
@@ -33,6 +52,11 @@ export interface Player {
   nickname?: string;
   photoUrl: string;
   position: PlayerPosition;
+  /** Nível técnico: 1 = melhor ... 6 = mais fraco (definido pelo administrador). */
+  skillLevel: number;
+  dominantFoot?: DominantFoot;
+  /** Jogadores inativos não aparecem nas listas de presença nem no sorteio. */
+  active: boolean;
   userId?: string;
   email?: string;
   createdAt: string;
@@ -50,6 +74,18 @@ export interface LineTeam {
   isDemo?: boolean;
 }
 
+export interface Season {
+  id: string;
+  name: string;
+  startDate: string; // YYYY-MM-DD
+  endDate?: string; // YYYY-MM-DD (preenchida ao encerrar)
+  status: SeasonStatus;
+  /** Revelação da temporada (escolha manual do administrador). */
+  revelationPlayerId?: string;
+  createdAt: string;
+  closedAt?: string;
+}
+
 export interface Pelada {
   id: string;
   title: string;
@@ -57,15 +93,20 @@ export interface Pelada {
   time: string; // HH:mm
   location: string;
   status: PeladaStatus;
-  expectedPlayers: number; // e.g. 18 or 24
-  lineCount: number; // e.g. 3 or 4
-  playersPerLine: number; // e.g. 6
+  expectedPlayers: number;
+  lineCount: number;
+  playersPerLine: number;
   participatingLineIds: string[];
   lineRosters: Record<string, string[]>; // lineId -> playerId[]
+  /** Jogadores que confirmaram presença. */
   confirmedPlayerIds: string[];
+  /** Jogadores que informaram que não vão. */
+  declinedPlayerIds: string[];
+  /** Jogadores escalados nas linhas (efetivamente participaram). */
   presentPlayerIds: string[];
   votingStatus: VotingStatus;
   allowPlayerUploads: boolean;
+  seasonId?: string;
   officialPhotoId?: string;
   championLineId?: string;
   createdAt: string;
@@ -89,7 +130,13 @@ export interface MatchRecord {
   awayGoals: number;
   homeScorers: MatchScorerEntry[];
   awayScorers: MatchScorerEntry[];
+  homeAssists: MatchScorerEntry[];
+  awayAssists: MatchScorerEntry[];
+  /** Escalação de cada lado no momento do jogo (vazio em jogos antigos → usa a escalação da pelada). */
+  homePlayerIds: string[];
+  awayPlayerIds: string[];
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface LineStanding {
@@ -110,11 +157,17 @@ export interface LineStanding {
   titles?: number;
 }
 
+/**
+ * Totais de gols/assistências de um jogador numa pelada.
+ * No snapshot, `goals` é DERIVADO: soma dos autores registrados nos jogos
+ * + ajustes históricos (coleção `goals`, anterior ao registro por partida).
+ */
 export interface PlayerRoundGoal {
   id: string; // `${peladaId}_${playerId}`
   peladaId: string;
   playerId: string;
   goals: number;
+  assists: number;
   updatedAt: string;
 }
 
@@ -169,6 +222,7 @@ export interface PhotoItem {
   uploadedByUserId: string;
   uploadedByName: string;
   isOfficial: boolean;
+  taggedPlayerIds?: string[];
   createdAt: string;
   isDemo?: boolean;
 }
@@ -191,6 +245,7 @@ export interface PlayerRoundPerformance {
   lineName?: string;
   lineColorHex?: string;
   goals: number;
+  assists: number;
   matchWins: number;
   matchDraws: number;
   matchLosses: number;
@@ -200,26 +255,34 @@ export interface PlayerRoundPerformance {
 
 export interface PlayerComputedStats {
   playerId: string;
+  /** Peladas em que o jogador esteve presente. */
   participations: number;
-  goals: number;
+  matchesPlayed: number;
   matchWins: number;
+  matchDraws: number;
+  matchLosses: number;
+  goals: number;
+  assists: number;
+  /** Aproveitamento (%) = pontos conquistados / pontos disputados. */
+  efficiency: number;
+  goalsPerMatch: number;
+  goalsPerPelada: number;
   lineTitles: number;
   totalAwards: number;
   bestPlayerAwards: number;
   bestGoalkeeperAwards: number;
   topScorerAwards: number;
-  goalsPerPelada: number;
   history: PlayerRoundPerformance[];
 }
 
 export interface AppSnapshot {
-  backendMode: 'local-sqlite' | 'firebase';
-  hasDemoData: boolean;
   users: UserAccount[];
   players: Player[];
   lines: LineTeam[];
+  seasons: Season[];
   peladas: Pelada[];
   matches: MatchRecord[];
+  /** Totais derivados por pelada/jogador (jogos + ajustes históricos). */
   goals: PlayerRoundGoal[];
   awards: RoundAward[];
   photos: PhotoItem[];
@@ -228,8 +291,11 @@ export interface AppSnapshot {
 }
 
 export type AppSection =
+  | 'dashboard'
   | 'hoje'
+  | 'jogadores'
   | 'votacoes'
   | 'galeria'
   | 'ranking'
+  | 'premiacoes'
   | 'perfil';

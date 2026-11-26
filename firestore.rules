@@ -1,4 +1,9 @@
 rules_version = '2';
+// =============================================================================
+// FutebolB3 — Regras de segurança do Cloud Firestore
+// Papéis: 'admin' (gerencia tudo) e 'player' (dados próprios, presença, votos, fotos).
+// Publicar com:  firebase deploy --only firestore:rules
+// =============================================================================
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -6,12 +11,16 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function userPath(uid) {
+      return /databases/$(database)/documents/users/$(uid);
+    }
+
     function currentUserDoc() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      return get(userPath(request.auth.uid)).data;
     }
 
     function isAdmin() {
-      return isSignedIn() && currentUserDoc().role == 'admin';
+      return isSignedIn() && exists(userPath(request.auth.uid)) && currentUserDoc().role == 'admin';
     }
 
     function currentPlayerId() {
@@ -22,55 +31,106 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/peladas/$(peladaId)).data;
     }
 
-    // 1. USUÁRIOS
+    function bootstrapExists() {
+      return exists(/databases/$(database)/documents/meta/bootstrap);
+    }
+
+    function changedOnly(keys) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+    }
+
+    // A lista `field` só pode mudar pela inclusão/remoção do próprio jogador
+    function onlyOwnIdChanged(field) {
+      let before = resource.data.get(field, []).toSet();
+      let after = request.resource.data.get(field, []).toSet();
+      return after.difference(before).union(before.difference(after)).hasOnly([currentPlayerId()]);
+    }
+
+    // ---------------------------------------------------------------- USUÁRIOS
     match /users/{userId} {
       allow read: if isSignedIn();
+
+      // Criação da própria conta. O jogador vinculado precisa ficar com userId = uid
+      // no MESMO batch (getAfter). Só o primeiro cadastro (sem bootstrap) pode ser admin.
       allow create: if isSignedIn() && request.auth.uid == userId
-        && (request.resource.data.role == 'player' || !exists(/databases/$(database)/documents/meta/bootstrap));
-      allow update: if isAdmin() || (
-        isSignedIn() && request.auth.uid == userId
-        && request.resource.data.role == resource.data.role
-      );
+        && request.resource.data.id == userId
+        && (request.resource.data.role == 'player'
+            || (request.resource.data.role == 'admin' && !bootstrapExists()))
+        && getAfter(/databases/$(database)/documents/players/$(request.resource.data.playerId)).data.userId == request.auth.uid;
+
+      // O usuário só pode alterar o próprio nome. Papel e jogador vinculado são imutáveis.
+      allow update: if isAdmin()
+        || (isSignedIn() && request.auth.uid == userId && changedOnly(['name']));
+
       allow delete: if isAdmin();
     }
 
-    // Controle de inicialização / metadados
+    // ------------------------------------------------------------------- META
     match /meta/{docId} {
-      allow read: if true;
-      allow write: if isAdmin() || (isSignedIn() && docId == 'bootstrap' && !exists(/databases/$(database)/documents/meta/bootstrap));
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && docId == 'bootstrap' && !bootstrapExists()
+        && request.resource.data.adminUid == request.auth.uid
+        && getAfter(userPath(request.auth.uid)).data.role == 'admin';
+      allow update, delete: if isAdmin();
     }
 
-    // 2. JOGADORES
+    // -------------------------------------------------------------- JOGADORES
     match /players/{playerId} {
       allow read: if isSignedIn();
-      allow create: if isAdmin() || (isSignedIn() && request.resource.data.userId == request.auth.uid);
-      allow update: if isAdmin() || (
+
+      // Admin cria qualquer jogador. Jogador cria apenas o próprio perfil no cadastro,
+      // sem definir nível técnico nem status (exclusivos do admin).
+      allow create: if isAdmin() || (
         isSignedIn()
-        && (!('userId' in resource.data) || resource.data.userId == null || resource.data.userId == request.auth.uid)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'nickname', 'photoUrl', 'position', 'userId', 'email', 'updatedAt'])
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.id == playerId
+        && getAfter(userPath(request.auth.uid)).data.playerId == playerId
+        && !('skillLevel' in request.resource.data)
+        && !('active' in request.resource.data)
       );
+
+      allow update: if isAdmin()
+        // Dono do perfil: só dados pessoais
+        || (isSignedIn()
+            && resource.data.get('userId', null) == request.auth.uid
+            && changedOnly(['name', 'nickname', 'photoUrl', 'position', 'dominantFoot', 'updatedAt']))
+        // Vínculo de conta nova a um jogador cadastrado pelo admin (ainda sem conta)
+        || (isSignedIn()
+            && resource.data.get('userId', null) == null
+            && request.resource.data.userId == request.auth.uid
+            && getAfter(userPath(request.auth.uid)).data.playerId == playerId
+            && changedOnly(['userId', 'email', 'nickname', 'position', 'updatedAt']));
+
       allow delete: if isAdmin();
     }
 
-    // 3. LINHAS (EQUIPES)
+    // ------------------------------------------------------- LINHAS (EQUIPES)
     match /lines/{lineId} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
     }
 
-    // 4. PELADAS (RODADAS DE SÁBADO)
+    // ------------------------------------------------------------- TEMPORADAS
+    match /seasons/{seasonId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // ---------------------------------------------------------------- PELADAS
     match /peladas/{peladaId} {
       allow read: if isSignedIn();
       allow create, delete: if isAdmin();
-      // Jogador comum pode apenas confirmar/cancelar sua própria presença quando a pelada não está encerrada
+      // Jogador comum: apenas confirmar/recusar a PRÓPRIA presença, com a pelada aberta
       allow update: if isAdmin() || (
         isSignedIn()
         && resource.data.status != 'finished'
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['confirmedPlayerIds', 'updatedAt'])
+        && changedOnly(['confirmedPlayerIds', 'declinedPlayerIds', 'updatedAt'])
+        && onlyOwnIdChanged('confirmedPlayerIds')
+        && onlyOwnIdChanged('declinedPlayerIds')
       );
     }
 
-    // 5 & 6. PARTIDAS E RESULTADOS
+    // ------------------------------------------- PARTIDAS, RESULTADOS E GOLS
     match /matches/{matchId} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
@@ -81,14 +141,15 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // 7. GOLS INDIVIDUAIS
+    // Ajustes históricos de gols (antes do registro por partida)
     match /goals/{goalId} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
     }
 
-    // 8. VOTOS (Secretos até encerrar, apenas presentes, 1 por categoria, proibido votar em si mesmo)
-    // ID determinístico: {peladaId}_{voterPlayerId}_{category}
+    // ------------------------------------------------------------------ VOTOS
+    // Secretos até o encerramento. 1 voto por categoria (ID determinístico),
+    // apenas jogadores escalados, proibido votar em si mesmo.
     match /votes/{voteId} {
       allow read: if isSignedIn() && (
         resource.data.voterUserId == request.auth.uid
@@ -103,34 +164,49 @@ service cloud.firestore {
         && request.resource.data.candidatePlayerId != currentPlayerId()
         && (request.resource.data.category == 'best_player' || request.resource.data.category == 'best_goalkeeper')
         && getPelada(request.resource.data.peladaId).votingStatus == 'open'
-        && currentPlayerId() in getPelada(request.resource.data.peladaId).presentPlayerIds;
+        && currentPlayerId() in getPelada(request.resource.data.peladaId).presentPlayerIds
+        && request.resource.data.candidatePlayerId in getPelada(request.resource.data.peladaId).presentPlayerIds;
 
-      allow update, delete: if false;
+      allow update: if false;
+      // Somente para limpeza em cascata ao excluir uma pelada
+      allow delete: if isAdmin();
     }
 
-    // 9. PREMIAÇÕES OFICIAIS
+    // ------------------------------------------------------------- PREMIAÇÕES
     match /awards/{awardId} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
     }
 
-    // 10. GALERIA DE FOTOS ("Momentos da Pelada")
+    // ------------------------------------------------------------------ FOTOS
     match /photos/{photoId} {
       allow read: if isSignedIn();
       allow create: if isAdmin() || (
         isSignedIn()
         && request.resource.data.uploadedByUserId == request.auth.uid
+        && request.resource.data.isOfficial == false
         && getPelada(request.resource.data.peladaId).allowPlayerUploads == true
       );
-      allow update, delete: if isAdmin() || (isSignedIn() && resource.data.uploadedByUserId == request.auth.uid);
+      allow update: if isAdmin() || (
+        isSignedIn()
+        && resource.data.uploadedByUserId == request.auth.uid
+        && changedOnly(['caption', 'taggedPlayerIds'])
+      );
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.uploadedByUserId == request.auth.uid);
     }
 
-    // NOTIFICAÇÕES VISUAIS
+    // ---------------------------------------------------------------- AVISOS
     match /notifications/{notifId} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isAdmin();
+      allow create, delete: if isAdmin();
+      // Qualquer usuário pode apenas marcar o aviso como lido por ele mesmo
+      allow update: if isAdmin() || (
+        isSignedIn()
+        && changedOnly(['readByUserIds'])
+        && request.resource.data.readByUserIds.toSet()
+             .difference(resource.data.readByUserIds.toSet())
+             .hasOnly([request.auth.uid])
+      );
     }
   }
 }
