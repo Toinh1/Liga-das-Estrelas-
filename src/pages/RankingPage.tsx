@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { CalendarRange, ExternalLink, Lock, Plus, Trophy } from 'lucide-react';
+import { CalendarRange, Check, ExternalLink, Lock, Pencil, Plus, Trophy } from 'lucide-react';
+import { AdjustStatsModal } from '../components/AdjustStatsModal';
 import { StandingsTable } from '../components/StandingsTable';
 import {
   ChipGroup,
@@ -57,6 +58,8 @@ export const RankingPage: React.FC = () => {
 
   const [tab, setTab] = useState<RankTab>('jogadores');
   const [metric, setMetric] = useState<Metric>('geral');
+  const [editMode, setEditMode] = useState(false);
+  const [editPlayerId, setEditPlayerId] = useState<string | null>(null);
   const activeSeason = snapshot?.seasons.find((s) => s.status === 'active');
   const [period, setPeriod] = useState<PeriodFilter>(
     activeSeason ? { kind: 'season', seasonId: activeSeason.id } : { kind: 'all' }
@@ -161,6 +164,29 @@ export const RankingPage: React.FC = () => {
       {tab === 'jogadores' && (
         <div className="space-y-3">
           <ChipGroup value={metric} onChange={setMetric} options={METRICS.map((m) => ({ id: m.id, label: m.label }))} />
+          {isAdmin && (
+            <div
+              className={`flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-2xl border ${
+                editMode ? 'bg-yellow-400/[0.08] border-yellow-400/30' : 'bg-[#161616] border-white/[0.07]'
+              }`}
+            >
+              <span className="text-[11px] text-slate-300 leading-snug">
+                {editMode
+                  ? 'Toque em um jogador para corrigir gols e assistências.'
+                  : 'Admin: corrija gols e assistências que ficaram errados.'}
+              </span>
+              <button
+                type="button"
+                onClick={() => setEditMode((v) => !v)}
+                className={`shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-extrabold cursor-pointer ${
+                  editMode ? 'bg-yellow-400 text-slate-950' : 'bg-white/[0.08] text-white'
+                }`}
+              >
+                {editMode ? <Check className="w-3.5 h-3.5" /> : <Pencil className="w-3.5 h-3.5" />}
+                {editMode ? 'Concluir' : 'Editar'}
+              </button>
+            </div>
+          )}
           <p className="text-[11px] text-slate-500 px-1">
             {metric === 'geral' &&
               `Pontuação: gol ${SCORE_WEIGHTS.goal} • assistência ${SCORE_WEIGHTS.assist} • vitória ${SCORE_WEIGHTS.win} • voto de Melhor da Pelada ${SCORE_WEIGHTS.bestPlayerVote}.`}
@@ -192,7 +218,7 @@ export const RankingPage: React.FC = () => {
                       return (
                         <tr
                           key={s.playerId}
-                          onClick={() => openPlayerProfile(s.playerId)}
+                          onClick={() => (editMode && isAdmin ? setEditPlayerId(s.playerId) : openPlayerProfile(s.playerId))}
                           className={`hover:bg-white/[0.03] transition cursor-pointer ${pos === 1 ? 'bg-lime-400/[0.05]' : ''}`}
                         >
                           <td className="py-2.5 pl-4 pr-2 text-xs font-bold text-slate-400">
@@ -202,7 +228,10 @@ export const RankingPage: React.FC = () => {
                             <div className="flex items-center gap-2.5 min-w-0">
                               <PlayerAvatar player={p} size={30} />
                               <div className="min-w-0">
-                                <div className="font-bold text-white text-sm truncate">{playerLabel(p)}</div>
+                                <div className="font-bold text-white text-sm truncate flex items-center gap-1.5">
+                                  {playerLabel(p)}
+                                  {editMode && isAdmin && <Pencil className="w-3 h-3 text-yellow-300 shrink-0" />}
+                                </div>
                                 <div className="text-[11px] text-slate-500">{p?.position}</div>
                               </div>
                             </div>
@@ -224,6 +253,10 @@ export const RankingPage: React.FC = () => {
             </div>
           )}
         </div>
+      )}
+
+      {editPlayerId && (
+        <AdjustStatsModal playerId={editPlayerId} peladas={data.peladas} onClose={() => setEditPlayerId(null)} />
       )}
 
       {/* ==================== EQUIPES ==================== */}

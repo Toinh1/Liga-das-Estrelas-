@@ -48,26 +48,17 @@ export const ProfilePage: React.FC = () => {
                 <CalendarDays className="w-3.5 h-3.5" /> {formatDateBR(nextPelada.date)} às {nextPelada.time} • {confirmedCount} confirmados
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                disabled={busyAction || myStatus === 'confirmed'}
-                onClick={() => runAction(() => babaService.setOwnPresence(nextPelada.id, 'confirmed'), 'Presença confirmada! ⚽')}
-                className={`px-4 py-2 rounded-xl text-xs font-extrabold cursor-pointer disabled:cursor-default ${
-                  myStatus === 'confirmed' ? 'bg-lime-400 text-slate-950' : 'bg-lime-400/15 text-lime-300 border border-lime-400/40'
-                }`}
-              >
-                ✓ Vou
-              </button>
-              <button
-                disabled={busyAction || myStatus === 'declined'}
-                onClick={() => runAction(() => babaService.setOwnPresence(nextPelada.id, 'declined'), 'Ausência registrada')}
-                className={`px-4 py-2 rounded-xl text-xs font-extrabold cursor-pointer disabled:cursor-default ${
-                  myStatus === 'declined' ? 'bg-rose-500 text-white' : 'bg-rose-500/10 text-rose-300 border border-rose-500/30'
-                }`}
-              >
-                ✕ Não vou
-              </button>
-            </div>
+            <span
+              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold ${
+                myStatus === 'confirmed'
+                  ? 'bg-lime-400/15 text-lime-400'
+                  : myStatus === 'declined'
+                  ? 'bg-rose-500/10 text-rose-300'
+                  : 'bg-white/5 text-slate-400'
+              }`}
+            >
+              {myStatus === 'confirmed' ? '✓ Na lista' : myStatus === 'declined' ? '✕ Fora' : 'Aguardando lista'}
+            </span>
           </div>
           {myLine ? (
             <div className="p-3 rounded-2xl bg-[#1F1F1F] border border-white/5 space-y-2">

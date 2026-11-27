@@ -94,6 +94,24 @@ test('gols e assistências derivados dos jogos + ajustes históricos', () => {
   assert.equal(a2.assists, 2);
 });
 
+test('ajuste manual do admin pode tirar gols, sem ficar negativo', () => {
+  const m = match('m1', 2, 0, {
+    homeScorers: [{ playerId: 'a1', count: 2 }],
+    homeAssists: [{ playerId: 'a2', count: 1 }],
+  });
+  const adj = (playerId: string, goals: number, assists: number) => ({
+    id: `p1_${playerId}`, peladaId: 'p1', playerId, goals, assists, updatedAt: '',
+  });
+  // a1: 2 gols nos jogos, admin corrige para 1 (ajuste -1)
+  const a1 = deriveRoundGoals([m], [adj('a1', -1, 0)]).find((g) => g.playerId === 'a1')!;
+  assert.equal(a1.goals, 1);
+  // ajuste maior que o registrado nunca deixa negativo; zerado some da lista
+  const goals = deriveRoundGoals([m], [adj('a2', 0, -5)]);
+  assert.equal(goals.find((g) => g.playerId === 'a2'), undefined);
+  // jogador sem gol nos jogos recebe +1 manual
+  assert.equal(deriveRoundGoals([m], [adj('b1', 1, 0)]).find((g) => g.playerId === 'b1')!.goals, 1);
+});
+
 test('editar um jogo não duplica estatísticas (recalculo do zero)', () => {
   const before = match('m1', 2, 0, { homeScorers: [{ playerId: 'a1', count: 2 }] });
   const after = { ...before, homeGoals: 1, homeScorers: [{ playerId: 'a1', count: 1 }] };

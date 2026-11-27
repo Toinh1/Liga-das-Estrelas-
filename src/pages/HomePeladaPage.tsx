@@ -4,12 +4,13 @@ import { GoalsPanel } from '../components/pelada/GoalsPanel';
 import { MatchesPanel } from '../components/pelada/MatchesPanel';
 import { PresencePanel } from '../components/pelada/PresencePanel';
 import { TeamsPanel } from '../components/pelada/TeamsPanel';
-import { SegmentedTabs, cardClass, ghostBtn, primaryBtn } from '../components/ui';
+import { NextStepHint, PeladaStepper, getPeladaProgress, type PeladaStepId } from '../components/pelada/PeladaSteps';
+import { cardClass, ghostBtn, primaryBtn } from '../components/ui';
 import { useBaba } from '../context/BabaContext';
 import { babaService } from '../services/babaService';
 import { formatShortDateBR } from '../utils/statsEngine';
 
-type SubTab = 'presenca' | 'times' | 'jogos' | 'gols';
+type SubTab = PeladaStepId;
 
 const STATUS_LABEL = {
   open: { text: 'Confirmações abertas', cls: 'bg-sky-400/15 text-sky-300' },
@@ -33,14 +34,17 @@ export const HomePeladaPage: React.FC = () => {
   } = useBaba();
 
   const pelada = selectedPelada || activePelada;
-  const [subTab, setSubTab] = useState<SubTab>(() =>
-    !pelada || pelada.status === 'open' ? 'presenca' : 'jogos'
-  );
+  const initialTab = (): SubTab => {
+    if (!pelada || !snapshot) return 'presenca';
+    const cur = getPeladaProgress(pelada, snapshot.matches).current;
+    return cur === 'gols' ? 'jogos' : cur;
+  };
+  const [subTab, setSubTab] = useState<SubTab>(initialTab);
 
-  // Abre na aba mais útil para o momento da pelada
+  // Abre na etapa em que a pelada está agora
   useEffect(() => {
     if (!pelada) return;
-    setSubTab(pelada.status === 'open' ? 'presenca' : 'jogos');
+    setSubTab(initialTab());
   }, [pelada?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!snapshot || !user) return null;
@@ -70,6 +74,11 @@ export const HomePeladaPage: React.FC = () => {
   const matchCount = snapshot.matches.filter((m) => m.peladaId === pelada.id).length;
   const status = STATUS_LABEL[pelada.status];
   const season = snapshot.seasons.find((s) => s.id === pelada.seasonId);
+  const progress = getPeladaProgress(pelada, snapshot.matches);
+  const goTo = (tab: SubTab) => {
+    setSubTab(tab);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const handleClose = async () => {
     if (!window.confirm('Encerrar a pelada, definir a linha campeã e apurar as premiações?')) return;
@@ -137,14 +146,20 @@ export const HomePeladaPage: React.FC = () => {
                   title="Reabrir para correções"
                   className={ghostBtn}
                 >
-                  <RotateCcw className="w-4 h-4" />
+                  <RotateCcw className="w-4 h-4" /> Reabrir
                 </button>
               )}
             </>
           ) : (
             isAdmin && (
-              <button disabled={busyAction} onClick={handleClose} className={ghostBtn}>
-                <Flag className="w-3.5 h-3.5 text-lime-400" /> Encerrar
+              <button
+                disabled={busyAction}
+                onClick={handleClose}
+                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-lime-400 hover:bg-lime-300 text-slate-950 text-sm font-extrabold shadow-lg shadow-lime-400/30 ring-2 ring-lime-400/40 ring-offset-2 ring-offset-[#161616] active:scale-95 transition cursor-pointer disabled:opacity-50 ${
+                  matchCount > 0 ? 'animate-pulse' : ''
+                }`}
+              >
+                <Flag className="w-4 h-4" strokeWidth={2.6} /> Encerrar o Baba
               </button>
             )
           )}
@@ -161,28 +176,20 @@ export const HomePeladaPage: React.FC = () => {
         </div>
       </div>
 
-      <SegmentedTabs
-        value={subTab}
-        onChange={setSubTab}
-        options={[
-          { id: 'presenca', label: '✅ Presença' },
-          { id: 'times', label: '👕 Times' },
-          { id: 'jogos', label: '⚽ Jogos' },
-          { id: 'gols', label: '🔥 Gols' },
-        ]}
+      <NextStepHint
+        pelada={pelada}
+        progress={progress}
+        isAdmin={isAdmin}
+        isConfirmed={pelada.confirmedPlayerIds.includes(user.playerId)}
       />
+
+      <PeladaStepper value={subTab} onChange={setSubTab} progress={progress} />
 
       <div className="animate-fade-in" key={subTab}>
         {subTab === 'presenca' && (
-          <PresencePanel
-            pelada={pelada}
-            onGoToTeams={() => {
-              setSubTab('times');
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-          />
+          <PresencePanel pelada={pelada} onGoToTeams={isAdmin ? () => goTo('times') : undefined} />
         )}
-        {subTab === 'times' && <TeamsPanel pelada={pelada} onConfirmed={() => { setSubTab('jogos'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} />}
+        {subTab === 'times' && <TeamsPanel pelada={pelada} onConfirmed={() => goTo('jogos')} />}
         {subTab === 'jogos' && <MatchesPanel pelada={pelada} />}
         {subTab === 'gols' && <GoalsPanel pelada={pelada} />}
       </div>

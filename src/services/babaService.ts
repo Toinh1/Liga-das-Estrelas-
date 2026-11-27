@@ -907,21 +907,6 @@ export const babaService = {
     );
   },
 
-  /** O próprio jogador confirma, recusa ou volta para pendente. */
-  async setOwnPresence(peladaId: string, status: PresenceStatus): Promise<void> {
-    const me = requireUser();
-    return guard(async () => {
-      const pelada = getPelada(peladaId);
-      if (pelada.status === 'finished') fail('Esta pelada já foi encerrada.');
-      const pid = me.playerId;
-      await updateDoc(doc(db(), 'peladas', peladaId), {
-        confirmedPlayerIds: status === 'confirmed' ? arrayUnion(pid) : arrayRemove(pid),
-        declinedPlayerIds: status === 'declined' ? arrayUnion(pid) : arrayRemove(pid),
-        updatedAt: nowIso(),
-      });
-    });
-  },
-
   /** Admin marca a presença de qualquer jogador. */
   async setPlayerPresence(peladaId: string, playerId: string, status: PresenceStatus): Promise<void> {
     requireAdmin();
@@ -1188,6 +1173,36 @@ export const babaService = {
       const pelada = getPelada(match.peladaId);
       if (pelada.status === 'finished') fail('Pelada encerrada. Reabra para alterar resultados.');
       await deleteDoc(doc(db(), 'matches', matchId));
+    });
+  },
+
+  // ----- AJUSTE MANUAL DE GOLS/ASSISTÊNCIAS (RANKING) -----
+  /**
+   * Define o total de gols e assistências de um jogador numa pelada.
+   * Os jogos registrados continuam intactos: a diferença é gravada como
+   * ajuste em `goals/{peladaId}_{playerId}` (pode ser negativa).
+   */
+  async setPlayerPeladaTotals(peladaId: string, playerId: string, goals: number, assists: number): Promise<void> {
+    requireAdmin();
+    return guard(async () => {
+      getPelada(peladaId);
+      if (!state().players.some((p) => p.id === playerId)) fail('Jogador não encontrado.');
+      const target = (n: number) => Math.max(0, Math.min(99, Math.trunc(Number(n) || 0)));
+      let fromGoals = 0;
+      let fromAssists = 0;
+      for (const m of state().matches) {
+        if (m.peladaId !== peladaId) continue;
+        for (const s of [...m.homeScorers, ...m.awayScorers]) if (s.playerId === playerId) fromGoals += s.count;
+        for (const a of [...m.homeAssists, ...m.awayAssists]) if (a.playerId === playerId) fromAssists += a.count;
+      }
+      const dg = target(goals) - fromGoals;
+      const da = target(assists) - fromAssists;
+      const goalRef = doc(db(), 'goals', `${peladaId}_${playerId}`);
+      if (dg === 0 && da === 0) {
+        await deleteDoc(goalRef);
+      } else {
+        await setDoc(goalRef, { peladaId, playerId, goals: dg, assists: da, updatedAt: nowIso() });
+      }
     });
   },
 

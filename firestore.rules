@@ -1,7 +1,7 @@
 rules_version = '2';
 // =============================================================================
 // FutebolB3 — Regras de segurança do Cloud Firestore
-// Papéis: 'admin' (gerencia tudo) e 'player' (dados próprios, presença, votos, fotos).
+// Papéis: 'admin' (gerencia tudo) e 'player' (visualiza; edita só o próprio perfil, vota e envia fotos).
 // Publicar com:  firebase deploy --only firestore:rules
 // =============================================================================
 service cloud.firestore {
@@ -37,13 +37,6 @@ service cloud.firestore {
 
     function changedOnly(keys) {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
-    }
-
-    // A lista `field` só pode mudar pela inclusão/remoção do próprio jogador
-    function onlyOwnIdChanged(field) {
-      let before = resource.data.get(field, []).toSet();
-      let after = request.resource.data.get(field, []).toSet();
-      return after.difference(before).union(before.difference(after)).hasOnly([currentPlayerId()]);
     }
 
     // ---------------------------------------------------------------- USUÁRIOS
@@ -119,15 +112,9 @@ service cloud.firestore {
     // ---------------------------------------------------------------- PELADAS
     match /peladas/{peladaId} {
       allow read: if isSignedIn();
-      allow create, delete: if isAdmin();
-      // Jogador comum: apenas confirmar/recusar a PRÓPRIA presença, com a pelada aberta
-      allow update: if isAdmin() || (
-        isSignedIn()
-        && resource.data.status != 'finished'
-        && changedOnly(['confirmedPlayerIds', 'declinedPlayerIds', 'updatedAt'])
-        && onlyOwnIdChanged('confirmedPlayerIds')
-        && onlyOwnIdChanged('declinedPlayerIds')
-      );
+      // Somente o admin cria, edita (inclusive a lista de presença) e exclui.
+      // Jogadores apenas visualizam.
+      allow create, update, delete: if isAdmin();
     }
 
     // ------------------------------------------- PARTIDAS, RESULTADOS E GOLS

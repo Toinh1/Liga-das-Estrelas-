@@ -70,8 +70,9 @@ export function normalizeMatch(raw: Raw): MatchRecord {
 export function normalizeLegacyGoal(raw: Raw): PlayerRoundGoal {
   return {
     ...(raw as PlayerRoundGoal),
-    goals: Math.max(0, Number(raw.goals) || 0),
-    assists: Math.max(0, Number(raw.assists) || 0),
+    // Pode ser negativo: é um ajuste sobre o que foi registrado nos jogos.
+    goals: Math.trunc(Number(raw.goals) || 0),
+    assists: Math.trunc(Number(raw.assists) || 0),
   };
 }
 

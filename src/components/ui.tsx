@@ -142,22 +142,28 @@ export const PlayerAvatar: React.FC<{ player?: Player; size?: number; className?
 
 export const playerLabel = (p?: Player) => (p ? p.nickname || p.name : 'Jogador removido');
 
-/** Cores por nível: 1 (melhor) verde-limão ... 6 (mais fraco) vermelho. */
-const LEVEL_COLORS: Record<number, string> = {
-  1: 'bg-lime-400 text-slate-950',
-  2: 'bg-emerald-400 text-slate-950',
-  3: 'bg-sky-400 text-slate-950',
-  4: 'bg-yellow-300 text-slate-950',
-  5: 'bg-orange-400 text-slate-950',
-  6: 'bg-rose-400 text-slate-950',
+/**
+ * Cores por nível num só tom de vermelho: o nível 1 (melhor) é o vermelho
+ * mais forte e cada nível seguinte fica mais claro, até o 6 (mais fraco).
+ */
+const LEVEL_HEX: Record<number, { bg: string; fg: string }> = {
+  1: { bg: '#7A0A0A', fg: '#FFFFFF' },
+  2: { bg: '#B51414', fg: '#FFFFFF' },
+  3: { bg: '#EE3B3B', fg: '#FFFFFF' },
+  4: { bg: '#F77B7B', fg: '#1A0505' },
+  5: { bg: '#FBB5B5', fg: '#1A0505' },
+  6: { bg: '#FEE8E8', fg: '#1A0505' },
 };
+const levelStyle = (level: number): React.CSSProperties | undefined =>
+  LEVEL_HEX[level] ? { backgroundColor: LEVEL_HEX[level].bg, color: LEVEL_HEX[level].fg } : undefined;
 
 /** Selo do nível técnico (1 = melhor, 6 = mais fraco). */
 export const LevelBadge: React.FC<{ level: number; compact?: boolean }> = ({ level, compact }) => (
   <span
     className={`${compact ? 'w-4 h-4 text-[9px] rounded' : 'px-1.5 h-5 text-[10px] rounded-md'} inline-flex items-center justify-center font-black ${
-      LEVEL_COLORS[level] ?? 'bg-white/10 text-slate-300'
+      LEVEL_HEX[level] ? '' : 'bg-white/10 text-slate-300'
     }`}
+    style={levelStyle(level)}
     title={`Nível ${level} (1 = melhor, ${SKILL_MAX} = mais fraco)`}
   >
     {compact ? level : `N${level}`}
@@ -189,8 +195,9 @@ export const SkillMeter: React.FC<{
             onClick={() => onChange(level)}
             title={level === 1 ? 'Nível 1 — melhor' : level === SKILL_MAX ? `Nível ${level} — mais fraco` : `Nível ${level}`}
             className={`${box} rounded-lg flex items-center justify-center font-extrabold transition cursor-pointer ${
-              selected ? `${LEVEL_COLORS[level]} scale-110 shadow` : 'bg-white/[0.07] text-slate-400 hover:text-white'
+              selected ? 'scale-110 shadow' : 'bg-white/[0.07] text-slate-400 hover:text-white'
             }`}
+            style={selected ? levelStyle(level) : undefined}
           >
             {level}
           </button>

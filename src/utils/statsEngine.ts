@@ -300,7 +300,10 @@ export function deriveRoundGoals(
       bump(m.peladaId, a.playerId, 'assists', a.count, ts);
     }
   }
-  return Array.from(map.values());
+  // Ajustes negativos nunca deixam o total abaixo de zero.
+  return Array.from(map.values())
+    .map((e) => ({ ...e, goals: Math.max(0, e.goals), assists: Math.max(0, e.assists) }))
+    .filter((e) => e.goals > 0 || e.assists > 0);
 }
 
 export function computeRoundTopScorers(

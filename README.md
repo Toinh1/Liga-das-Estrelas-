@@ -70,7 +70,9 @@ históricos anteriores ao registro por partida) · `votes` · `awards` · `photo
 |---|---|---|
 | Criar/encerrar peladas, sortear times, registrar e corrigir jogos | ✅ | — |
 | Cadastrar jogadores, definir nível técnico e status | ✅ | — |
-| Confirmar/recusar a própria presença | ✅ | ✅ |
+| Montar a lista de presença (confirmar/tirar jogadores) | ✅ | — |
+| Corrigir gols e assistências no Ranking | ✅ | — |
+| Visualizar peladas, times, jogos, ranking e premiações | ✅ | ✅ |
 | Editar dados pessoais e foto do próprio perfil | ✅ | ✅ |
 | Votar (apenas escalados, sem autovoto, 1 voto por categoria) | ✅ | ✅ |
 | Enviar fotos (se liberado na pelada) e marcar jogadores | ✅ | ✅ |

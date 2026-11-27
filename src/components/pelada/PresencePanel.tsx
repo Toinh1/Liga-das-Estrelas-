@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ArrowRight, Check, ClipboardCopy, ClipboardPaste, RotateCcw, X } from 'lucide-react';
+import { ArrowRight, Check, ChevronDown, ClipboardCopy, ClipboardPaste, RotateCcw, UserPlus, X } from 'lucide-react';
 import { useBaba } from '../../context/BabaContext';
 import { babaService } from '../../services/babaService';
 import type { Pelada, Player, PresenceStatus } from '../../types/domain';
@@ -24,6 +24,7 @@ export const PresencePanel: React.FC<{ pelada: Pelada; onGoToTeams?: () => void 
   const { snapshot, user, isAdmin, runAction, busyAction, pushToast } = useBaba();
   const [importOpen, setImportOpen] = useState(false);
   const [importText, setImportText] = useState('');
+  const [addOpen, setAddOpen] = useState(false);
 
   const groups = useMemo(
     () => (snapshot ? getPresenceGroups(pelada, snapshot.players) : null),
@@ -114,29 +115,6 @@ export const PresencePanel: React.FC<{ pelada: Pelada; onGoToTeams?: () => void 
     </div>
   );
 
-  const Column: React.FC<{ title: string; tone: string; list: Player[]; status: PresenceStatus; empty: string }> = ({
-    title,
-    tone,
-    list,
-    status,
-    empty,
-  }) => (
-    <div className={`${cardClass} !rounded-2xl p-3.5 space-y-2`}>
-      <div className={`text-xs font-extrabold ${tone}`}>
-        {title} ({list.length})
-      </div>
-      {list.length === 0 ? (
-        <div className="text-[11px] text-slate-500 py-2">{empty}</div>
-      ) : (
-        <div className="space-y-1.5 max-h-80 overflow-y-auto">
-          {list.map((p) => (
-            <PlayerRow key={p.id} p={p} status={status} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-
   return (
     <div className="space-y-4">
       {/* INDICADORES */}
@@ -177,11 +155,45 @@ export const PresencePanel: React.FC<{ pelada: Pelada; onGoToTeams?: () => void 
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <Column title="✅ Confirmados" tone="text-lime-400" list={groups.confirmed} status="confirmed" empty="Ninguém confirmou ainda." />
-        <Column title="⏳ Pendentes" tone="text-yellow-300" list={groups.pending} status="pending" empty="Todos já responderam." />
-        <Column title="❌ Ausentes" tone="text-rose-400" list={groups.declined} status="declined" empty="Nenhuma ausência." />
+      {/* LISTA DOS CONFIRMADOS */}
+      <div className={`${cardClass} !rounded-2xl p-3.5 space-y-2`}>
+        <div className="text-xs font-extrabold text-lime-400">✅ Confirmados ({groups.confirmed.length})</div>
+        {groups.confirmed.length === 0 ? (
+          <div className="text-[11px] text-slate-500 py-2">Ninguém confirmou ainda.</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5">
+            {groups.confirmed.map((p) => (
+              <PlayerRow key={p.id} p={p} status="confirmed" />
+            ))}
+          </div>
+        )}
       </div>
+
+      {/* ADICIONAR JOGADORES (admin): pendentes e ausentes ficam escondidos aqui */}
+      {isAdmin && !isFinished && groups.pending.length + groups.declined.length > 0 && (
+        <div className="space-y-2">
+          <button
+            type="button"
+            onClick={() => setAddOpen((v) => !v)}
+            className={`${ghostBtn} w-full justify-between`}
+            aria-expanded={addOpen}
+          >
+            <span className="inline-flex items-center gap-2">
+              <UserPlus className="w-4 h-4 text-lime-400" /> Adicionar jogador à lista ({groups.pending.length + groups.declined.length})
+            </span>
+            <ChevronDown className={`w-4 h-4 transition ${addOpen ? 'rotate-180' : ''}`} />
+          </button>
+          {addOpen && (
+            <div className={`${cardClass} !rounded-2xl p-3.5 grid grid-cols-1 md:grid-cols-2 gap-1.5 animate-fade-in`}>
+              {[...groups.pending.map((p) => ({ p, st: 'pending' as const })), ...groups.declined.map((p) => ({ p, st: 'declined' as const }))].map(
+                ({ p, st }) => (
+                  <PlayerRow key={p.id} p={p} status={st} />
+                )
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* IR PARA OS TIMES */}
       {onGoToTeams && (

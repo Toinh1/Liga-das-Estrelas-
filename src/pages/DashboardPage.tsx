@@ -1,7 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import {
   Activity,
+  AlertTriangle,
+  ArrowRight,
   CalendarClock,
+  Check,
   ChevronDown,
   Clock,
   Crown,
@@ -23,7 +26,7 @@ import {
   type TileTone,
 } from '../components/ui';
 import { useBaba } from '../context/BabaContext';
-import { babaService } from '../services/babaService';
+import { getPeladaProgress, type PeladaProgress } from '../components/pelada/PeladaSteps';
 import type { Pelada } from '../types/domain';
 import { computePeriodAwards } from '../utils/awardsEngine';
 import {
@@ -36,10 +39,25 @@ import {
   type PeriodFilter,
 } from '../utils/statsEngine';
 
-const STATUS_VIEW: Record<Pelada['status'], { icon: React.ElementType; tone: TileTone; label: string }> = {
-  open: { icon: CalendarClock, tone: 'orange', label: 'Aberta' },
-  in_progress: { icon: Activity, tone: 'emerald', label: 'Ao vivo' },
-  finished: { icon: Swords, tone: 'lime', label: 'Encerrada' },
+const STATUS_VIEW: Record<Pelada['status'], { icon: React.ElementType; tone: TileTone }> = {
+  open: { icon: CalendarClock, tone: 'orange' },
+  in_progress: { icon: Activity, tone: 'emerald' },
+  finished: { icon: Swords, tone: 'lime' },
+};
+
+/** Texto do status em linguagem simples, de acordo com a etapa da pelada. */
+function statusText(p: Pelada, progress: PeladaProgress): { text: string; cls: string } {
+  if (p.status === 'finished') return { text: 'Encerrada', cls: 'bg-white/[0.06] text-slate-300' };
+  if (progress.matchesDone) return { text: 'Em jogo', cls: 'bg-emerald-500/15 text-emerald-300' };
+  if (progress.teamsDone) return { text: 'Times prontos', cls: 'bg-sky-500/15 text-sky-300' };
+  if (progress.presenceDone) return { text: 'Sorteando times', cls: 'bg-yellow-400/15 text-yellow-300' };
+  return { text: 'Confirmando presença', cls: 'bg-orange-500/15 text-orange-300' };
+}
+
+const STEP_CTA: Record<string, string> = {
+  presenca: 'Marcar presença',
+  times: 'Sortear os times',
+  jogos: 'Registrar os jogos',
 };
 
 const shortDate = (iso: string) =>
@@ -54,8 +72,6 @@ export const DashboardPage: React.FC = () => {
     setSelectedPeladaId,
     setActiveSection,
     openPlayerProfile,
-    runAction,
-    busyAction,
   } = useBaba();
 
   const months = useMemo(() => (snapshot ? listMonthsWithPeladas(snapshot.peladas) : []), [snapshot]);
@@ -125,6 +141,8 @@ export const DashboardPage: React.FC = () => {
       ? 'declined'
       : 'pending'
     : null;
+  const nextProgress = nextPelada ? getPeladaProgress(nextPelada, snapshot.matches) : null;
+  const openPeladas = snapshot.peladas.filter((p) => p.status !== 'finished');
   const confirmedPct = nextPelada && activePlayers ? (nextPelada.confirmedPlayerIds.length / activePlayers) * 100 : 0;
 
   // Feed agrupado por mês
@@ -193,56 +211,95 @@ export const DashboardPage: React.FC = () => {
           </select>
         </label>
 
-        {nextPelada && (
-          <button
-            onClick={() => openPelada(nextPelada.id)}
-            className="flex items-center gap-2.5 pl-3.5 pr-1.5 py-1.5 rounded-full bg-[#161616] border border-white/[0.08] cursor-pointer hover:border-lime-400/30 transition"
-            title="Confirmados na próxima pelada"
-          >
-            <div className="text-right leading-tight">
-              <div className="text-xs font-bold text-white">{nextPelada.title}</div>
-              <div className="text-[10px] text-slate-400">{nextPelada.confirmedPlayerIds.length} confirmados</div>
-            </div>
-            <RingProgress value={confirmedPct} />
-          </button>
-        )}
       </div>
 
-      {/* MINHA PRESENÇA NA PRÓXIMA PELADA */}
-      {nextPelada && myStatus !== 'confirmed' && (
-        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 rounded-2xl bg-lime-400/[0.07] border border-lime-400/25">
-          <div className="text-xs text-lime-100">
-            <span className="font-bold">{nextPelada.title}</span> • {shortDate(nextPelada.date)} às {nextPelada.time}
-            <div className="text-[11px] text-lime-200/70">
-              {myStatus === 'declined' ? 'Você marcou que não vai.' : 'Você ainda não respondeu.'}
+      {/* AVISO: VÁRIAS PELADAS ABERTAS */}
+      {isAdmin && openPeladas.length > 1 && (
+        <div className="flex gap-3 px-4 py-3 rounded-2xl bg-amber-500/10 border border-amber-400/30">
+          <AlertTriangle className="w-4 h-4 text-amber-300 shrink-0 mt-0.5" />
+          <p className="text-[11px] sm:text-xs text-amber-100/90 leading-relaxed">
+            Existem <strong>{openPeladas.length} peladas em aberto</strong>. Para não confundir a galera, abra as que não vão
+            acontecer e toque na lixeira para excluir, ou encerre as que já terminaram.
+          </p>
+        </div>
+      )}
+
+      {/* PRÓXIMA PELADA: o que fazer agora */}
+      {nextPelada && nextProgress && (
+        <div className="p-4 rounded-3xl bg-gradient-to-br from-lime-400/[0.12] to-transparent border border-lime-400/30 space-y-3.5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-[10px] font-black uppercase tracking-wider text-lime-400">Próxima pelada</div>
+              <div className="font-display font-extrabold text-lg text-white leading-tight mt-0.5">{nextPelada.title}</div>
+              <div className="text-[11px] text-slate-400 mt-0.5">
+                {shortDate(nextPelada.date)} às {nextPelada.time}
+                {nextPelada.location ? ` • ${nextPelada.location}` : ''}
+              </div>
             </div>
+            <RingProgress value={confirmedPct} />
           </div>
-          <div className="flex items-center gap-2">
+
+          {/* Etapas resumidas */}
+          <div className="grid grid-cols-4 gap-1">
+            {(
+              [
+                ['Presença', nextProgress.presenceDone],
+                ['Times', nextProgress.teamsDone],
+                ['Jogos', nextProgress.matchesDone],
+                ['Encerrar', false],
+              ] as const
+            ).map(([label, done], i) => (
+              <div key={label} className="flex flex-col items-center gap-1">
+                <div className={`h-1.5 w-full rounded-full ${done ? 'bg-lime-400' : 'bg-white/10'}`} />
+                <span className={`text-[10px] font-bold inline-flex items-center gap-0.5 ${done ? 'text-lime-400' : 'text-slate-500'}`}>
+                  {done ? <Check className="w-3 h-3" strokeWidth={3} /> : `${i + 1}.`} {label}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div className="text-xs text-slate-300">
+            <strong className="text-white">{nextPelada.confirmedPlayerIds.length}</strong> confirmados de {activePlayers} jogadores
+          </div>
+
+          {isAdmin ? (
             <button
-              disabled={busyAction}
-              onClick={() => runAction(() => babaService.setOwnPresence(nextPelada.id, 'confirmed'), 'Presença confirmada! ⚽')}
-              className="px-4 py-2 rounded-full bg-lime-400 text-slate-950 text-xs font-extrabold cursor-pointer disabled:opacity-50"
+              onClick={() => openPelada(nextPelada.id)}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-lime-400 hover:bg-lime-300 text-slate-950 text-sm font-extrabold cursor-pointer transition"
             >
-              ✓ Vou
+              {nextProgress.matchesDone ? 'Continuar a pelada' : STEP_CTA[nextProgress.current]}
+              <ArrowRight className="w-4 h-4" />
             </button>
-            {myStatus === 'pending' && (
-              <button
-                disabled={busyAction}
-                onClick={() => runAction(() => babaService.setOwnPresence(nextPelada.id, 'declined'), 'Ausência registrada')}
-                className="px-4 py-2 rounded-full bg-white/[0.06] text-slate-300 text-xs font-bold cursor-pointer disabled:opacity-50"
+          ) : (
+            <div className="flex items-center justify-between gap-2">
+              <span
+                className={`text-xs font-bold ${
+                  myStatus === 'confirmed' ? 'text-lime-400' : myStatus === 'declined' ? 'text-rose-400' : 'text-slate-400'
+                }`}
               >
-                Não vou
+                {myStatus === 'confirmed'
+                  ? '✓ Você está na lista'
+                  : myStatus === 'declined'
+                  ? '✕ Você está fora desta pelada'
+                  : 'O admin ainda não te colocou na lista'}
+              </span>
+              <button onClick={() => openPelada(nextPelada.id)} className="text-xs font-bold text-white underline cursor-pointer">
+                Ver pelada
               </button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       )}
 
       {/* FEED DE PELADAS */}
+      <div className="px-1 -mb-1">
+        <h2 className="text-sm font-extrabold text-white">Peladas</h2>
+        <p className="text-[11px] text-slate-500">Toque em uma pelada para ver presença, times, jogos e gols.</p>
+      </div>
       {groups.length === 0 ? (
         <div className={`${cardClass} p-10 text-center text-sm text-slate-400`}>
           Nenhuma pelada {month === 'all' ? 'criada ainda' : 'neste mês'}.
-          {isAdmin && ' Toque em + para criar.'}
+          {isAdmin && ' Toque no botão verde + para criar.'}
         </div>
       ) : (
         groups.map((g, gi) => (
@@ -252,6 +309,7 @@ export const DashboardPage: React.FC = () => {
             )}
             {g.items.map((p) => {
               const sv = STATUS_VIEW[p.status];
+              const st = statusText(p, getPeladaProgress(p, snapshot.matches));
               const matchCount = snapshot.matches.filter((m) => m.peladaId === p.id).length;
               const champ = p.championLineId ? lineMap.get(p.championLineId) : undefined;
               return (
@@ -268,10 +326,10 @@ export const DashboardPage: React.FC = () => {
                         style={{ backgroundColor: champ.colorHex, color: champ.textColorHex }}
                         title={`${champ.name} campeã`}
                       >
-                        🏆 {champ.shortName}
+                        🏆 {champ.name.replace(/^Linha\s+/i, '')}
                       </span>
                     ) : (
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${p.status === 'in_progress' ? 'bg-emerald-500/15 text-emerald-300' : 'bg-orange-500/15 text-orange-300'}`}>{sv.label}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${st.cls}`}>{st.text}</span>
                     )
                   }
                   chips={
@@ -298,7 +356,7 @@ export const DashboardPage: React.FC = () => {
           {[
             { icon: Users, tone: 'lime' as TileTone, value: activePlayers, label: 'Jogadores ativos' },
             { icon: Trophy, tone: 'yellow' as TileTone, value: snapshot.peladas.filter((p) => p.status === 'finished').length, label: 'Peladas realizadas' },
-            { icon: Activity, tone: 'emerald' as TileTone, value: snapshot.peladas.filter((p) => p.status !== 'finished').length, label: 'Ao vivo' },
+            { icon: Activity, tone: 'emerald' as TileTone, value: snapshot.peladas.filter((p) => p.status !== 'finished').length, label: 'Em aberto' },
             { icon: Swords, tone: 'sky' as TileTone, value: snapshot.matches.length, label: 'Partidas' },
           ].map((s) => (
             <div key={s.label} className="flex items-center gap-3 p-3.5 rounded-2xl bg-[#161616] border border-white/[0.07]">

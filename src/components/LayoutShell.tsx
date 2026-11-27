@@ -4,6 +4,7 @@ import {
   Bell,
   Camera,
   CheckCircle2,
+  HelpCircle,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -19,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useBaba } from '../context/BabaContext';
 import { BrandLogo, BrandWordmark } from './ui';
+import { HELP_SEEN_KEY, HelpModal } from './HelpModal';
 import { babaService } from '../services/babaService';
 import type { AppSection } from '../types/domain';
 
@@ -26,17 +28,19 @@ interface NavItem {
   id: AppSection;
   label: string;
   icon: React.ElementType;
+  /** Explicação curta mostrada no menu "Mais". */
+  desc: string;
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: 'dashboard', label: 'Início', icon: LayoutDashboard },
-  { id: 'hoje', label: 'Pelada', icon: Swords },
-  { id: 'jogadores', label: 'Jogadores', icon: Users },
-  { id: 'ranking', label: 'Ranking', icon: Trophy },
-  { id: 'premiacoes', label: 'Premiações', icon: Award },
-  { id: 'votacoes', label: 'Votação', icon: Vote },
-  { id: 'galeria', label: 'Fotos', icon: Camera },
-  { id: 'perfil', label: 'Perfil', icon: User },
+  { id: 'dashboard', label: 'Início', icon: LayoutDashboard, desc: 'Próxima pelada e resumo' },
+  { id: 'hoje', label: 'Pelada', icon: Swords, desc: 'Presença, times e jogos' },
+  { id: 'jogadores', label: 'Jogadores', icon: Users, desc: 'Lista do baba e níveis' },
+  { id: 'ranking', label: 'Ranking', icon: Trophy, desc: 'Artilharia e classificação' },
+  { id: 'premiacoes', label: 'Premiações', icon: Award, desc: 'Craque, artilheiro, garçom…' },
+  { id: 'votacoes', label: 'Votação', icon: Vote, desc: 'Vote no destaque da pelada' },
+  { id: 'galeria', label: 'Fotos', icon: Camera, desc: 'Fotos das peladas' },
+  { id: 'perfil', label: 'Perfil', icon: User, desc: 'Seus números e sua conta' },
 ];
 
 /** Atalhos fixos na barra inferior do celular; o restante fica em "Mais". */
@@ -66,6 +70,21 @@ export const LayoutShell: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [notifOpen, setNotifOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(() => {
+    try {
+      return !localStorage.getItem(HELP_SEEN_KEY);
+    } catch {
+      return false;
+    }
+  });
+  const closeHelp = () => {
+    setHelpOpen(false);
+    try {
+      localStorage.setItem(HELP_SEEN_KEY, '1');
+    } catch {
+      /* ignore */
+    }
+  };
 
   if (!user || !snapshot) return null;
 
@@ -89,7 +108,7 @@ export const LayoutShell: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const badgeFor = (id: AppSection) =>
-    (id === 'votacoes' && votingIsOpen) || (id === 'hoje' && pendingPresence);
+    (id === 'votacoes' && votingIsOpen) || (id === 'hoje' && isAdmin && pendingPresence);
 
   const moreItems = NAV_ITEMS.filter((i) => !MOBILE_PRIMARY.includes(i.id));
   const moreActive = moreItems.some((i) => i.id === activeSection);
@@ -160,7 +179,15 @@ export const LayoutShell: React.FC<{ children: React.ReactNode }> = ({ children 
               {NAV_ITEMS.find((i) => i.id === activeSection)?.label}
             </div>
 
-            <div className="relative">
+            <div className="relative flex items-center gap-2">
+              <button
+                onClick={() => setHelpOpen(true)}
+                aria-label="Como funciona"
+                title="Como funciona"
+                className="p-2 rounded-xl bg-[#1C1C1C] border border-white/10 text-slate-300 hover:text-white transition cursor-pointer"
+              >
+                <HelpCircle className="w-4 h-4" />
+              </button>
               <button
                 onClick={handleOpenNotifs}
                 aria-label={`Avisos${unreadCount ? ` (${unreadCount} novos)` : ''}`}
@@ -175,7 +202,7 @@ export const LayoutShell: React.FC<{ children: React.ReactNode }> = ({ children 
               </button>
 
               {notifOpen && (
-                <div className="absolute right-0 mt-2 w-72 sm:w-80 rounded-2xl bg-[#1C1C1C] border border-white/15 shadow-2xl overflow-hidden z-50 animate-fade-in">
+                <div className="absolute right-0 top-full mt-2 w-72 sm:w-80 rounded-2xl bg-[#1C1C1C] border border-white/15 shadow-2xl overflow-hidden z-50 animate-fade-in">
                   <div className="px-4 py-2.5 border-b border-white/10 flex items-center justify-between">
                     <span className="text-xs font-bold text-white">Avisos</span>
                     <div className="flex items-center gap-2">
@@ -226,7 +253,7 @@ export const LayoutShell: React.FC<{ children: React.ReactNode }> = ({ children 
             if (slot === 'CENTER') {
               const CenterIcon = isAdmin ? Plus : Swords;
               return (
-                <div key={slot} className="flex justify-center">
+                <div key={slot} className="flex flex-col items-center">
                   <button
                     onClick={() => {
                       setMoreOpen(false);
@@ -238,6 +265,9 @@ export const LayoutShell: React.FC<{ children: React.ReactNode }> = ({ children 
                   >
                     <CenterIcon className="w-6 h-6 -rotate-45" strokeWidth={2.6} />
                   </button>
+                  <span className="text-[10px] font-bold mt-2 text-lime-400 tracking-tight">
+                    {isAdmin ? 'Nova pelada' : 'Jogar'}
+                  </span>
                 </div>
               );
             }
@@ -290,17 +320,23 @@ export const LayoutShell: React.FC<{ children: React.ReactNode }> = ({ children 
                 <button
                   key={item.id}
                   onClick={() => go(item.id)}
-                  className={`flex items-center gap-2.5 px-3.5 py-3 rounded-2xl text-sm font-bold cursor-pointer ${
+                  className={`flex items-start gap-2.5 px-3.5 py-3 rounded-2xl text-left cursor-pointer ${
                     activeSection === item.id ? 'bg-lime-400/15 text-lime-400' : 'bg-white/[0.04] text-slate-200'
                   }`}
                 >
-                  <Icon className="w-4 h-4" /> {item.label}
+                  <Icon className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-bold leading-tight">{item.label}</span>
+                    <span className="block text-[10px] text-slate-500 leading-tight mt-0.5">{item.desc}</span>
+                  </span>
                 </button>
               );
             })}
           </div>
         </div>
       )}
+
+      {helpOpen && <HelpModal isAdmin={isAdmin} onClose={closeHelp} />}
 
       {/* TOASTS */}
       <div className="fixed top-14 right-4 z-[60] flex flex-col gap-2 max-w-xs w-[calc(100%-2rem)] pointer-events-none" aria-live="polite">
