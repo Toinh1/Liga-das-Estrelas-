@@ -240,3 +240,12 @@ test('lista: nome com 2 cadastros pede "Quem é?" e respeita a escolha', () => {
   const edited = resolveRoster('1- Gabriel Souza', homonyms, { [rosterChoiceKey(row)]: 'g2' });
   assert.equal(edited.items[0].matchedPlayerId, undefined);
 });
+
+test('lista: acento diferencia pessoas ("Cauã" ≠ "Caua"), maiúsculas não', () => {
+  const only = [{ id: 'c1', name: 'Cauã', photoUrl: '', position: 'Meia', skillLevel: 2, active: true, createdAt: '' }] as Player[];
+  const res = resolveRoster('1- caua\n2- CAUÃ\n3- cauã', only, {});
+  assert.equal(res.items.length, 2); // "caua" é pessoa nova; "CAUÃ" e "cauã" são o mesmo cadastro
+  assert.equal(res.rows[0].item.isNew, true);
+  assert.equal(res.rows[1].item.matchedPlayerId, 'c1');
+  assert.equal(res.rows[2].duplicateOfLine, 1);
+});

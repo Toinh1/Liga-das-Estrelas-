@@ -91,6 +91,9 @@ const norm = (s: string) =>
     .toLowerCase()
     .trim();
 
+/** Compara nomes de pessoas mantendo acentos ("Cauã" ≠ "Caua"), sem diferenciar maiúsculas. */
+const personKey = (s: string) => s.normalize('NFC').toLowerCase().replace(/\s+/g, ' ').trim();
+
 class ValidationError extends Error {}
 
 function fail(message: string): never {
@@ -237,8 +240,8 @@ async function createAccountDocs(
       all.find(
         (p) =>
           !p.userId &&
-          (norm(p.name) === norm(name) ||
-            (p.nickname && input.nickname && norm(p.nickname) === norm(input.nickname)))
+          (personKey(p.name) === personKey(name) ||
+            (p.nickname && input.nickname && personKey(p.nickname) === personKey(input.nickname)))
       );
   }
 
@@ -481,8 +484,8 @@ export const babaService = {
           ? pool.find((p) => p.id === it.matchedPlayerId)
           : pool.find(
               (p) =>
-                norm(p.name) === norm(cleanName) ||
-                (p.nickname && norm(p.nickname) === norm(cleanName))
+                personKey(p.name) === personKey(cleanName) ||
+                (p.nickname && personKey(p.nickname) === personKey(cleanName))
             );
         if (existing) {
           if (it.skillLevel !== undefined && clampSkill(it.skillLevel) !== existing.skillLevel) {
@@ -532,7 +535,7 @@ export const babaService = {
     return guard(async () => {
       const name = input.name.trim();
       if (!name) fail('Informe o nome completo do jogador.');
-      const duplicate = state().players.find((p) => norm(p.name) === norm(name));
+      const duplicate = state().players.find((p) => personKey(p.name) === personKey(name));
       if (duplicate) fail(`Já existe um jogador chamado "${duplicate.name}".`);
       const id = newId('p');
       const photoUrl = input.photoUrl

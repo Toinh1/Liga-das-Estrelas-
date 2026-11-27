@@ -18,12 +18,21 @@ export interface EditableRosterItem {
   forceNew?: boolean;
 }
 
-export function normalizeStr(s: string): string {
+/** Texto sem acento e em minúsculas (usado só para reconhecer cabeçalhos da lista). */
+function foldStr(s: string): string {
   return s
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
     .trim();
+}
+
+/**
+ * Chave para comparar NOMES de pessoas: ignora maiúsculas e espaços extras,
+ * mas mantém os acentos — "Cauã" e "Caua" são pessoas diferentes.
+ */
+export function normalizeStr(s: string): string {
+  return s.normalize('NFC').toLowerCase().replace(/\s+/g, ' ').trim();
 }
 
 export function matchExistingPlayer(rawName: string, players: Player[]): Player | undefined {
@@ -84,7 +93,7 @@ export function parseRosterLines(text: string, existingPlayers: Player[]): Edita
     const raw = lines[i].trim();
     if (!raw) continue;
 
-    const lower = normalizeStr(raw);
+    const lower = foldStr(raw);
 
     // Detecta cabeçalhos comuns de listas de WhatsApp
     if (/^(goleiros?|gks?)\s*:?$/i.test(lower)) {

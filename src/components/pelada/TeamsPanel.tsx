@@ -394,8 +394,8 @@ export const TeamsPanel: React.FC<{ pelada: Pelada; onConfirmed?: () => void }> 
         </div>
       )}
 
-      {/* Sem times ainda: níveis primeiro, para conferir antes de sortear */}
-      {!hasTeams && levelsSection}
+      {/* Nivelamento dos jogadores sempre em cima; os times vêm embaixo */}
+      {levelsSection}
 
       {/* TIMES */}
       {lines.length === 0 ? (
@@ -481,9 +481,6 @@ export const TeamsPanel: React.FC<{ pelada: Pelada; onConfirmed?: () => void }> 
           ))}
         </div>
       )}
-
-      {/* Com times montados: níveis ficam embaixo, recolhidos */}
-      {hasTeams && levelsSection}
 
       {/* AÇÕES DO ADMIN: fixas no rodapé */}
       {canEdit && lines.length > 0 && (
