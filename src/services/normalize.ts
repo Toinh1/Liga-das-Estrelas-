@@ -15,6 +15,7 @@ import {
   type PlayerRoundGoal,
   type Season,
 } from '../types/domain';
+import { createPlayerAvatarSvg } from '../utils/mediaAssets';
 
 type Raw = Record<string, any>;
 
@@ -29,6 +30,7 @@ export function clampSkill(value: unknown): number {
 export function normalizePlayer(raw: Raw): Player {
   return {
     ...(raw as Player),
+    photoUrl: raw.photoUrl || createPlayerAvatarSvg(String(raw.name || '?'), '#3FE21A'),
     skillLevel: raw.skillLevel === undefined ? DEFAULT_SKILL : clampSkill(raw.skillLevel),
     active: raw.active !== false,
   };

@@ -5,7 +5,7 @@ import { MatchesPanel } from '../components/pelada/MatchesPanel';
 import { PresencePanel } from '../components/pelada/PresencePanel';
 import { TeamsPanel } from '../components/pelada/TeamsPanel';
 import { NextStepHint, PeladaStepper, getPeladaProgress, type PeladaStepId } from '../components/pelada/PeladaSteps';
-import { cardClass, ghostBtn, primaryBtn } from '../components/ui';
+import { cardClass, primaryBtn } from '../components/ui';
 import { useBaba } from '../context/BabaContext';
 import { babaService } from '../services/babaService';
 import { formatShortDateBR } from '../utils/statsEngine';
@@ -132,23 +132,6 @@ export const HomePeladaPage: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-          {isFinished ? (
-            <>
-              <button onClick={() => setCeremonyPeladaId(pelada.id)} className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-yellow-400 text-slate-950 text-xs font-extrabold cursor-pointer">
-                <Trophy className="w-3.5 h-3.5" /> Resumo
-              </button>
-              {isAdmin && (
-                <button
-                  disabled={busyAction}
-                  onClick={() => runAction(() => babaService.reopenPelada(pelada.id), 'Pelada reaberta para correções')}
-                  title="Reabrir para correções"
-                  className={ghostBtn}
-                >
-                  <RotateCcw className="w-4 h-4" /> Reabrir
-                </button>
-              )}
-            </>
-          ) : null}
           {isAdmin && (
             <button
               disabled={busyAction}
@@ -185,6 +168,30 @@ export const HomePeladaPage: React.FC = () => {
         {subTab === 'jogos' && <MatchesPanel pelada={pelada} onClosePelada={isAdmin ? handleClose : undefined} />}
         {subTab === 'gols' && <GoalsPanel pelada={pelada} />}
       </div>
+
+      {/* PELADA ENCERRADA: ações fixas no rodapé, como nas outras etapas */}
+      {isFinished && (
+        <div className="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] lg:bottom-4 z-10">
+          <div className="flex gap-2 p-2 rounded-xl bg-[#0E110E]/95 border border-white/10 shadow-[0_8px_24px_-8px_rgba(0,0,0,0.8)] backdrop-blur">
+            <button
+              onClick={() => setCeremonyPeladaId(pelada.id)}
+              className="flex-1 inline-flex items-center justify-center gap-2 py-3 rounded-lg bg-yellow-400 hover:bg-yellow-300 text-slate-950 text-sm font-bold transition cursor-pointer"
+            >
+              <Trophy className="w-4 h-4" /> Ver resumo
+            </button>
+            {isAdmin && (
+              <button
+                disabled={busyAction}
+                onClick={() => runAction(() => babaService.reopenPelada(pelada.id), 'Pelada reaberta para correções')}
+                title="Reabrir para correções"
+                className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg border border-white/15 text-slate-200 hover:bg-white/[0.06] text-sm font-semibold transition cursor-pointer disabled:opacity-40"
+              >
+                <RotateCcw className="w-4 h-4" /> Reabrir
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

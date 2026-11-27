@@ -7,6 +7,7 @@ import {
   deriveRoundGoals,
   determineChampionLineId,
   filterPeladasByPeriod,
+  pickCurrentPelada,
 } from '../src/utils/statsEngine.ts';
 
 const lines = [
@@ -186,4 +187,56 @@ test('lista com nível na frente do nome (1 = melhor)', () => {
   assert.deepEqual(lvl('2 Saladinha\n1 Pepeu\n2 Molao'), [['Saladinha', 2], ['Pepeu', 1], ['Molao', 2]]);
   assert.deepEqual(lvl('1 Saladinha\n2 Pepeu\n3 Molao'), [['Saladinha', undefined], ['Pepeu', undefined], ['Molao', undefined]]);
   assert.deepEqual(lvl('Pedro 16\nJoão (GK) 4'), [['Pedro 16', undefined], ['João', 4]]);
+});
+
+test('pelada atual: prioriza a em jogo, depois a próxima aberta mais antiga', () => {
+  const mk = (id: string, date: string, status: Pelada['status']): Pelada => ({ ...pelada, id, date, status });
+  // Várias abertas: vale a de data mais antiga (a mesma no Início e na aba Pelada)
+  assert.equal(
+    pickCurrentPelada([mk('c', '2026-12-16', 'open'), mk('b', '2026-12-09', 'open'), mk('a', '2026-12-02', 'finished')])?.id,
+    'b'
+  );
+  // Uma em jogo ganha das abertas
+  assert.equal(pickCurrentPelada([mk('x', '2026-12-09', 'open'), mk('y', '2026-12-16', 'in_progress')])?.id, 'y');
+  // Todas encerradas: nenhuma pelada atual
+  assert.equal(pickCurrentPelada([mk('z', '2026-12-02', 'finished')]), undefined);
+});
+
+import { resolveRoster, rosterChoiceKey, parseRosterLines } from '../src/utils/rosterParser.ts';
+
+const homonyms = [
+  { id: 'c1', name: 'Cauã', nickname: 'Kaua', photoUrl: '', position: 'Meia', skillLevel: 2, active: true, createdAt: '' },
+  { id: 'g1', name: 'Gabriel', photoUrl: '', position: 'Meia', skillLevel: 1, active: true, createdAt: '' },
+  { id: 'g2', name: 'Gabriel', nickname: 'Biel', photoUrl: '', position: 'Zagueiro', skillLevel: 4, active: true, createdAt: '' },
+] as Player[];
+
+test('lista: duas linhas no mesmo cadastro contam 1 até o admin escolher "Pessoa nova"', () => {
+  const text = '1- cauã\n2- kaua\n3- yago';
+  const before = resolveRoster(text, homonyms, {});
+  assert.equal(before.items.length, 2);
+  assert.equal(before.rows[1].duplicateOfLine, 0);
+
+  const line2 = parseRosterLines(text, homonyms)[1];
+  const after = resolveRoster(text, homonyms, { [rosterChoiceKey(line2)]: 'new' });
+  assert.equal(after.items.length, 3);
+  const novo = after.items.find((i) => i.line === 1)!;
+  assert.equal(novo.forceNew, true);
+  assert.equal(novo.matchedPlayerId, undefined);
+  assert.equal(novo.name, 'kaua');
+  assert.equal(after.rows[1].homonymNew, true);
+});
+
+test('lista: nome com 2 cadastros pede "Quem é?" e respeita a escolha', () => {
+  const text = '1- Gabriel';
+  const before = resolveRoster(text, homonyms, {});
+  assert.equal(before.rows[0].ambiguous, true);
+  assert.deepEqual(before.rows[0].item.candidateIds, ['g1', 'g2']);
+
+  const row = parseRosterLines(text, homonyms)[0];
+  const after = resolveRoster(text, homonyms, { [rosterChoiceKey(row)]: 'g2' });
+  assert.equal(after.rows[0].ambiguous, false);
+  assert.equal(after.items[0].matchedPlayerId, 'g2');
+  // Editar o nome da linha descarta a escolha antiga
+  const edited = resolveRoster('1- Gabriel Souza', homonyms, { [rosterChoiceKey(row)]: 'g2' });
+  assert.equal(edited.items[0].matchedPlayerId, undefined);
 });

@@ -5,16 +5,14 @@ import { getPresenceGroups } from '../components/pelada/PresencePanel';
 import { EmptyState, PlayerAvatar, cardClass, ghostBtn, playerLabel, primaryBtn } from '../components/ui';
 import { useBaba } from '../context/BabaContext';
 import { babaService } from '../services/babaService';
-import { findPlayerLineId, formatDateBR } from '../utils/statsEngine';
+import { findPlayerLineId, formatDateBR, pickCurrentPelada } from '../utils/statsEngine';
 
 export const ProfilePage: React.FC = () => {
   const { user, isAdmin, snapshot, runAction, busyAction, logout, setSelectedPeladaId, setActiveSection } = useBaba();
 
   const nextPelada = useMemo(
     () =>
-      snapshot?.peladas
-        .filter((p) => p.status !== 'finished')
-        .sort((a, b) => a.date.localeCompare(b.date))[0],
+      snapshot ? pickCurrentPelada(snapshot.peladas) : undefined,
     [snapshot]
   );
 

@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Check, ClipboardPaste, X } from 'lucide-react';
 import { useBaba } from '../context/BabaContext';
 import { babaService } from '../services/babaService';
-import { parseRosterText } from '../utils/rosterParser';
+import { resolveRoster, type RosterChoices } from '../utils/rosterParser';
+import { RosterLinesEditor } from './RosterLinesEditor';
 import { MAX_LINES, MIN_LINES, PELADA_DEFAULT_TIME, PELADA_WEEKDAY } from '../types/domain';
 import { getNextWeekdayISO } from '../utils/statsEngine';
 import { LineBadge } from './LineBadge';
@@ -30,6 +31,7 @@ export const CreatePeladaModal: React.FC = () => {
   const [location, setLocation] = useState('');
   const [selectedLineIds, setSelectedLineIds] = useState<string[]>([]);
   const [rosterText, setRosterText] = useState('');
+  const [rosterChoices, setRosterChoices] = useState<RosterChoices>({});
   const [showImport, setShowImport] = useState(false);
 
   useEffect(() => {
@@ -45,13 +47,14 @@ export const CreatePeladaModal: React.FC = () => {
         : snapshot.lines.slice(0, 3).map((l) => l.id)
     );
     setRosterText('');
+    setRosterChoices({});
     setShowImport(false);
     // Recarrega o formulário apenas ao abrir
   }, [openCreatePeladaModal]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!openCreatePeladaModal || !snapshot || !user) return null;
 
-  const parsedItems = rosterText ? parseRosterText(rosterText, snapshot.players) : [];
+  const parsedItems = rosterText ? resolveRoster(rosterText, snapshot.players, rosterChoices).items : [];
   const activeSeason = snapshot.seasons.find((s) => s.status === 'active');
 
   const toggleLine = (lineId: string) =>
@@ -64,7 +67,7 @@ export const CreatePeladaModal: React.FC = () => {
     const res = await runAction(async () => {
       const confirmedIds = parsedItems.length
         ? await babaService.ensurePlayersFromRoster(
-            parsedItems.map((it) => ({ name: it.name, position: it.position, matchedPlayerId: it.matchedPlayerId, skillLevel: it.skillLevel }))
+            parsedItems.map((it) => ({ name: it.name, position: it.position, matchedPlayerId: it.matchedPlayerId, skillLevel: it.skillLevel, forceNew: it.forceNew }))
           )
         : [];
       return babaService.createPelada({
@@ -153,6 +156,13 @@ export const CreatePeladaModal: React.FC = () => {
                 onChange={(e) => setRosterText(e.target.value)}
                 placeholder={'Cole 1 nome por linha:\n1. João\n2. Pedro (GK)'}
                 className={`${inputClass} leading-relaxed`}
+              />
+              <RosterLinesEditor
+                text={rosterText}
+                onChange={setRosterText}
+                players={snapshot.players}
+                choices={rosterChoices}
+                onChoicesChange={setRosterChoices}
               />
               <p className="text-[11px] text-slate-500">
                 {parsedItems.length} nome(s) serão marcados como confirmados

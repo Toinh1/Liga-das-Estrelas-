@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { Edit3, Flag, Plus, Trash2 } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Edit3, Flag, Plus, Timer, Trash2 } from 'lucide-react';
 import { useBaba } from '../../context/BabaContext';
 import { babaService } from '../../services/babaService';
 import type { LineTeam, MatchRecord, MatchScorerEntry, Pelada } from '../../types/domain';
@@ -7,6 +7,18 @@ import { computePeladaStandings } from '../../utils/statsEngine';
 import { StandingsTable } from '../StandingsTable';
 import { playerLabel } from '../ui';
 import { MatchEditorModal } from './MatchEditorModal';
+import { elapsedOf, formatClock, loadLive, type LiveMatchState } from './liveMatch';
+
+/** Relógio da partida em andamento (atualiza a cada segundo). */
+const LiveClock: React.FC<{ live: LiveMatchState }> = ({ live }) => {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!live.runningSince) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [live.runningSince]);
+  return <span className="tabular-nums">{formatClock(elapsedOf(live, now))}</span>;
+};
 
 const shortLine = (l?: LineTeam) => (l ? l.name.replace(/^linha\s+/i, '') : 'Linha removida');
 
@@ -31,6 +43,9 @@ export const MatchesPanel: React.FC<{ pelada: Pelada; onClosePelada?: () => void
   const lineMap = new Map(snapshot.lines.map((l) => [l.id, l]));
   const playerMap = new Map(snapshot.players.map((p) => [p.id, p]));
   const allLines = [...lines, ...snapshot.lines.filter((l) => !lines.includes(l))];
+
+  // Partida com cronômetro em andamento neste aparelho (sobrevive a fechar a janela)
+  const live = canEdit && !editor ? loadLive(pelada.id) : null;
 
   const names = (entries: MatchScorerEntry[]) =>
     entries.map((e) => `${playerLabel(playerMap.get(e.playerId))}${e.count > 1 ? ` (${e.count})` : ''}`).join(', ');
@@ -104,9 +119,14 @@ export const MatchesPanel: React.FC<{ pelada: Pelada; onClosePelada?: () => void
                       </div>
                     )}
                   </div>
-                  {(goals || assists || m.homeGoals + m.awayGoals > 0) && (
+                  {(goals || assists || m.homeGoals + m.awayGoals > 0 || m.durationSec) && (
                     <div className="pl-9 text-xs text-slate-400 space-y-0.5">
-                      {goals ? (
+                      {m.durationSec ? (
+                        <p className="inline-flex items-center gap-1 text-slate-500">
+                          <Timer className="w-3 h-3" /> {formatClock(m.durationSec * 1000)} de jogo
+                        </p>
+                      ) : null}
+                      {m.homeGoals + m.awayGoals === 0 ? null : goals ? (
                         <p>
                           <span className="text-slate-500">Gols:</span> {goals}
                         </p>
@@ -131,13 +151,23 @@ export const MatchesPanel: React.FC<{ pelada: Pelada; onClosePelada?: () => void
       {canEdit && lines.length >= 2 && (
         <div className="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] lg:bottom-4 z-10">
           <div className="flex gap-2 p-2 rounded-xl bg-[#0E110E]/95 border border-white/10 shadow-[0_8px_24px_-8px_rgba(0,0,0,0.8)] backdrop-blur">
-            <button
-              onClick={() => setEditor({})}
-              disabled={busyAction}
-              className="flex-1 inline-flex items-center justify-center gap-2 py-3 rounded-lg bg-lime-400 hover:bg-lime-300 text-slate-950 text-sm font-bold transition cursor-pointer disabled:opacity-50"
-            >
-              <Plus className="w-4 h-4" strokeWidth={2.6} /> Registrar jogo
-            </button>
+            {live ? (
+              <button
+                onClick={() => setEditor({})}
+                className="flex-1 inline-flex items-center justify-center gap-2 py-3 rounded-lg bg-white text-slate-950 text-sm font-bold transition cursor-pointer"
+              >
+                <Timer className="w-4 h-4" />
+                {live.finished ? 'Finalizar resultado' : 'Partida em andamento'} · <LiveClock live={live} />
+              </button>
+            ) : (
+              <button
+                onClick={() => setEditor({})}
+                disabled={busyAction}
+                className="flex-1 inline-flex items-center justify-center gap-2 py-3 rounded-lg bg-lime-400 hover:bg-lime-300 text-slate-950 text-sm font-bold transition cursor-pointer disabled:opacity-50"
+              >
+                <Plus className="w-4 h-4" strokeWidth={2.6} /> Registrar jogo
+              </button>
+            )}
             {onClosePelada && (
               <button
                 onClick={onClosePelada}

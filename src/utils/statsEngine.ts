@@ -122,6 +122,19 @@ export function playedPeladaIds(peladas: Pelada[], matches: MatchRecord[]): stri
   return peladas.filter((p) => withMatches.has(p.id)).map((p) => p.id);
 }
 
+/**
+ * Pelada "atual" do baba, usada no Início, na aba Pelada e no Perfil.
+ * Prioriza a que está em jogo; senão a próxima aberta (data mais antiga primeiro).
+ * Retorna undefined quando todas já foram encerradas.
+ */
+export function pickCurrentPelada(peladas: Pelada[]): Pelada | undefined {
+  const byDate = (a: Pelada, b: Pelada) =>
+    a.date.localeCompare(b.date) || (a.createdAt || '').localeCompare(b.createdAt || '');
+  const live = peladas.filter((p) => p.status === 'in_progress').sort(byDate);
+  if (live.length) return live[0];
+  return peladas.filter((p) => p.status === 'open').sort(byDate)[0];
+}
+
 export function listMonthsWithPeladas(peladas: Pelada[]): string[] {
   return Array.from(new Set(peladas.map((p) => p.date.slice(0, 7))))
     .filter(Boolean)

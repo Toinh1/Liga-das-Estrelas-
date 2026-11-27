@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Camera, ChevronLeft, ChevronRight, ImagePlus, Lock, Star, Tag, Trash2, Unlock, X } from 'lucide-react';
-import { ChipGroup, EmptyState, Modal, PageHeader, PlayerAvatar, cardClass, ghostBtn, inputClass, playerLabel, primaryBtn } from '../components/ui';
+import { ChipGroup, EmptyState, Modal, PageHeader, PlayerAvatar, ghostBtn, inputClass, playerLabel, primaryBtn } from '../components/ui';
 import { useBaba } from '../context/BabaContext';
 import { babaService } from '../services/babaService';
 import type { Pelada, PhotoItem, Player } from '../types/domain';

@@ -9,7 +9,7 @@ import type {
   PlayerPosition,
   UserAccount,
 } from '../types/domain';
-import { computeAllPlayersStats } from '../utils/statsEngine';
+import { computeAllPlayersStats, pickCurrentPelada } from '../utils/statsEngine';
 
 export interface ToastItem {
   id: string;
@@ -61,10 +61,8 @@ interface BabaContextValue {
 
 const BabaContext = createContext<BabaContextValue | null>(null);
 
-const pickDefaultPelada = (peladas: Pelada[]) =>
-  peladas.find((p) => p.status === 'in_progress') ||
-  peladas.find((p) => p.status === 'open') ||
-  peladas[0];
+/** Pelada atual (em jogo ou próxima aberta); se todas encerraram, a mais recente. */
+const pickDefaultPelada = (peladas: Pelada[]) => pickCurrentPelada(peladas) || peladas[0];
 
 export const BabaProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserAccount | null>(null);

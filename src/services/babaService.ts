@@ -307,6 +307,8 @@ export interface MatchInput {
   awayScorers: MatchScorerEntry[];
   homeAssists: MatchScorerEntry[];
   awayAssists: MatchScorerEntry[];
+  /** Tempo cronometrado (segundos), quando o jogo foi feito com o cronômetro. */
+  durationSec?: number;
 }
 
 function sanitizeEntries(entries: MatchScorerEntry[]): MatchScorerEntry[] {
@@ -321,7 +323,7 @@ function sanitizeEntries(entries: MatchScorerEntry[]): MatchScorerEntry[] {
 
 const sum = (entries: MatchScorerEntry[]) => entries.reduce((a, e) => a + e.count, 0);
 
-function validateMatch(input: MatchInput) {
+function validateMatch(input: MatchInput, existing?: MatchRecord) {
   const pelada = getPelada(input.peladaId);
   if (pelada.status === 'finished') fail('Pelada encerrada. Reabra para alterar resultados.');
   if (!input.homeLineId || !input.awayLineId || input.homeLineId === input.awayLineId) {
@@ -346,8 +348,14 @@ function validateMatch(input: MatchInput) {
     fail('Há mais assistências do que gols com autor identificado.');
   }
 
-  const homePlayerIds = pelada.lineRosters[input.homeLineId] || [];
-  const awayPlayerIds = pelada.lineRosters[input.awayLineId] || [];
+  // Na correção de um jogo, vale a escalação gravada nele (os times podem ter mudado depois)
+  const rosterFor = (lineId: string) => {
+    if (existing?.homeLineId === lineId && existing.homePlayerIds.length) return existing.homePlayerIds;
+    if (existing?.awayLineId === lineId && existing.awayPlayerIds.length) return existing.awayPlayerIds;
+    return pelada.lineRosters[lineId] || [];
+  };
+  const homePlayerIds = rosterFor(input.homeLineId);
+  const awayPlayerIds = rosterFor(input.awayLineId);
   const outside = (entries: MatchScorerEntry[], roster: string[]) =>
     roster.length > 0 && entries.some((e) => !roster.includes(e.playerId));
   if (outside([...homeScorers, ...homeAssists], homePlayerIds)) {
@@ -452,7 +460,7 @@ export const babaService = {
 
   // ----- JOGADORES -----
   async ensurePlayersFromRoster(
-    items: { name: string; position: PlayerPosition; matchedPlayerId?: string; skillLevel?: number }[]
+    items: { name: string; position: PlayerPosition; matchedPlayerId?: string; skillLevel?: number; forceNew?: boolean }[]
   ): Promise<string[]> {
     requireAdmin();
     return guard(async () => {
@@ -466,7 +474,10 @@ export const babaService = {
         const cleanName = it.name.trim();
         if (!cleanName) continue;
         const pool = [...players, ...created];
-        const existing = it.matchedPlayerId
+        // "Pessoa nova" escolhida pelo admin: não procura por nome (homônimo de alguém cadastrado)
+        const existing = it.forceNew
+          ? undefined
+          : it.matchedPlayerId
           ? pool.find((p) => p.id === it.matchedPlayerId)
           : pool.find(
               (p) =>
@@ -635,41 +646,63 @@ export const babaService = {
    */
   async deletePlayer(playerId: string): Promise<void> {
     const me = requireAdmin();
+    if (playerId === me.playerId) fail('Você não pode excluir o seu próprio perfil.');
+    const res = await babaService.deletePlayers([playerId]);
+    if (res.skipped.length) fail('Este jogador é administrador. Remova o acesso de admin antes de excluir.');
+    if (res.deleted === 0) fail('Jogador não encontrado.');
+  },
+
+  /**
+   * Exclui vários jogadores de uma vez (mesmas regras do deletePlayer).
+   * Nunca exclui o próprio admin nem outros administradores: esses voltam em `skipped`.
+   */
+  async deletePlayers(playerIds: string[]): Promise<{ deleted: number; skipped: string[] }> {
+    const me = requireAdmin();
     return guard(async () => {
-      if (playerId === me.playerId) fail('Você não pode excluir o seu próprio perfil.');
       const s = state();
-      const player = s.players.find((p) => p.id === playerId);
-      if (!player) fail('Jogador não encontrado.');
-      if (player.userId) {
-        const account = s.users.find((u) => u.id === player.userId);
-        if (account?.role === 'admin') fail('Este jogador é administrador. Remova o acesso de admin antes de excluir.');
-      }
+      const skipped: string[] = [];
+      const targets = s.players.filter((p) => {
+        if (!playerIds.includes(p.id)) return false;
+        const isAdminAccount = p.userId && s.users.find((u) => u.id === p.userId)?.role === 'admin';
+        if (p.id === me.playerId || isAdminAccount) {
+          skipped.push(p.nickname || p.name);
+          return false;
+        }
+        return true;
+      });
+      if (targets.length === 0) return { deleted: 0, skipped };
+      const ids = new Set(targets.map((p) => p.id));
 
       const ops: ((b: ReturnType<typeof writeBatch>) => void)[] = [];
       const now = nowIso();
+      // Tira os excluídos de confirmações e times das peladas que não terminaram
       for (const p of s.peladas) {
         if (p.status === 'finished') continue;
-        const inPelada =
-          p.confirmedPlayerIds.includes(playerId) ||
-          p.declinedPlayerIds.includes(playerId) ||
-          p.presentPlayerIds.includes(playerId) ||
-          Object.values(p.lineRosters).some((r) => r.includes(playerId));
-        if (!inPelada) continue;
+        const strip = (list: string[]) => list.filter((id) => !ids.has(id));
+        const touched =
+          p.confirmedPlayerIds.some((id) => ids.has(id)) ||
+          p.declinedPlayerIds.some((id) => ids.has(id)) ||
+          p.presentPlayerIds.some((id) => ids.has(id)) ||
+          Object.values(p.lineRosters).some((r) => r.some((id) => ids.has(id)));
+        if (!touched) continue;
         const rosters: Record<string, string[]> = {};
-        for (const [lid, ids] of Object.entries(p.lineRosters)) rosters[lid] = ids.filter((id) => id !== playerId);
+        for (const [lid, list] of Object.entries(p.lineRosters)) rosters[lid] = strip(list);
         ops.push((b) =>
           b.update(doc(db(), 'peladas', p.id), {
-            confirmedPlayerIds: arrayRemove(playerId),
-            declinedPlayerIds: arrayRemove(playerId),
-            presentPlayerIds: arrayRemove(playerId),
+            confirmedPlayerIds: strip(p.confirmedPlayerIds),
+            declinedPlayerIds: strip(p.declinedPlayerIds),
+            presentPlayerIds: strip(p.presentPlayerIds),
             lineRosters: rosters,
             updatedAt: now,
           })
         );
       }
-      if (player.userId) ops.push((b) => b.delete(doc(db(), 'users', player.userId!)));
-      ops.push((b) => b.delete(doc(db(), 'players', playerId)));
+      for (const p of targets) {
+        if (p.userId) ops.push((b) => b.delete(doc(db(), 'users', p.userId!)));
+        ops.push((b) => b.delete(doc(db(), 'players', p.id)));
+      }
       await commitInChunks(ops);
+      return { deleted: targets.length, skipped };
     });
   },
 
@@ -936,6 +969,7 @@ export const babaService = {
     requireAdmin();
     return guard(async () => {
       const pelada = getPelada(peladaId);
+      if (pelada.status === 'finished') fail('Esta pelada já foi encerrada.');
       const ids = Array.from(new Set(playerIds));
       const nextRosters: Record<string, string[]> = {};
       for (const lid of pelada.participatingLineIds) {
@@ -1096,10 +1130,17 @@ export const babaService = {
       const pelada = getPelada(peladaId);
       const season = state().seasons.find((x) => x.id === pelada.seasonId);
       if (season?.status === 'closed') fail('A temporada desta pelada já foi encerrada.');
-      await updateDoc(doc(db(), 'peladas', peladaId), {
+      // Campeã e prêmios são recalculados quando a pelada for encerrada de novo
+      const batch = writeBatch(db());
+      batch.update(doc(db(), 'peladas', peladaId), {
         status: 'in_progress',
+        championLineId: null,
         updatedAt: nowIso(),
       });
+      for (const a of state().awards.filter((x) => x.peladaId === peladaId)) {
+        batch.delete(doc(db(), 'awards', a.id));
+      }
+      await batch.commit();
     });
   },
 
@@ -1138,13 +1179,15 @@ export const babaService = {
         .filter((m) => m.peladaId === pelada.id)
         .reduce((max, m) => Math.max(max, m.orderIndex || 0), 0);
       const now = nowIso();
-      const match: MatchRecord = {
+      const duration = Math.round(Number(input.durationSec));
+      const match: MatchRecord = clean({
         id: matchId,
         peladaId: pelada.id,
         orderIndex: maxOrder + 1,
         ...data,
+        durationSec: Number.isFinite(duration) && duration > 0 && duration < 4 * 3600 ? duration : undefined,
         createdAt: now,
-      };
+      });
       const batch = writeBatch(db());
       batch.set(doc(db(), 'matches', matchId), match);
       if (pelada.status === 'open') {
@@ -1160,7 +1203,7 @@ export const babaService = {
     return guard(async () => {
       const existing = state().matches.find((m) => m.id === matchId);
       if (!existing) fail('Jogo não encontrado.');
-      const { clean: data } = validateMatch({ ...input, peladaId: existing.peladaId });
+      const { clean: data } = validateMatch({ ...input, peladaId: existing.peladaId }, existing);
       await updateDoc(doc(db(), 'matches', matchId), { ...data, updatedAt: nowIso() });
     });
   },

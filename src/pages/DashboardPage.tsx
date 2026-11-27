@@ -11,6 +11,7 @@ import {
   filterPeladasByPeriod,
   formatMonthKey,
   listMonthsWithPeladas,
+  pickCurrentPelada,
   playedPeladaIds,
   todayISO,
   type PeriodFilter,
@@ -110,9 +111,7 @@ export const DashboardPage: React.FC = () => {
   const playerMap = new Map(snapshot.players.map((p) => [p.id, p]));
   const lineMap = new Map(snapshot.lines.map((l) => [l.id, l]));
   const activePlayers = snapshot.players.filter((p) => p.active).length;
-  const nextPelada = snapshot.peladas
-    .filter((p) => p.status !== 'finished')
-    .sort((a, b) => a.date.localeCompare(b.date))[0];
+  const nextPelada = pickCurrentPelada(snapshot.peladas);
   const myStatus = nextPelada
     ? nextPelada.confirmedPlayerIds.includes(user.playerId)
       ? 'confirmed'

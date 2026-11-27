@@ -135,6 +135,8 @@ export interface MatchRecord {
   /** Escalação de cada lado no momento do jogo (vazio em jogos antigos → usa a escalação da pelada). */
   homePlayerIds: string[];
   awayPlayerIds: string[];
+  /** Tempo de bola rolando, em segundos (quando o jogo foi cronometrado no app). */
+  durationSec?: number;
   createdAt: string;
   updatedAt?: string;
 }

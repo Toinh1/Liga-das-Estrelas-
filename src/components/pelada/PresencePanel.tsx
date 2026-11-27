@@ -3,7 +3,8 @@ import { ArrowRight, Check, ChevronDown, ClipboardCopy, ClipboardPaste, UserPlus
 import { useBaba } from '../../context/BabaContext';
 import { babaService } from '../../services/babaService';
 import type { Pelada, Player, PresenceStatus } from '../../types/domain';
-import { parseRosterText } from '../../utils/rosterParser';
+import { resolveRoster, type RosterChoices } from '../../utils/rosterParser';
+import { RosterLinesEditor } from '../RosterLinesEditor';
 import { formatShortDateBR } from '../../utils/statsEngine';
 import { GkTag, PlayerAvatar, inputClass, playerLabel, primaryBtn } from '../ui';
 
@@ -24,6 +25,7 @@ export const PresencePanel: React.FC<{ pelada: Pelada; onGoToTeams?: () => void 
   const { snapshot, user, isAdmin, runAction, busyAction, pushToast } = useBaba();
   const [importOpen, setImportOpen] = useState(false);
   const [importText, setImportText] = useState('');
+  const [importChoices, setImportChoices] = useState<RosterChoices>({});
   const [addOpen, setAddOpen] = useState(false);
 
   const groups = useMemo(
@@ -33,7 +35,7 @@ export const PresencePanel: React.FC<{ pelada: Pelada; onGoToTeams?: () => void 
   if (!snapshot || !user || !groups) return null;
 
   const isFinished = pelada.status === 'finished';
-  const parsed = importText ? parseRosterText(importText, snapshot.players) : [];
+  const parsed = importText ? resolveRoster(importText, snapshot.players, importChoices).items : [];
 
   const setFor = (playerId: string, status: PresenceStatus) =>
     runAction(() => babaService.setPlayerPresence(pelada.id, playerId, status));
@@ -42,13 +44,14 @@ export const PresencePanel: React.FC<{ pelada: Pelada; onGoToTeams?: () => void 
     if (parsed.length === 0) return;
     const res = await runAction(async () => {
       const ids = await babaService.ensurePlayersFromRoster(
-        parsed.map((it) => ({ name: it.name, position: it.position, matchedPlayerId: it.matchedPlayerId, skillLevel: it.skillLevel }))
+        parsed.map((it) => ({ name: it.name, position: it.position, matchedPlayerId: it.matchedPlayerId, skillLevel: it.skillLevel, forceNew: it.forceNew }))
       );
       await babaService.setConfirmedList(pelada.id, [...pelada.confirmedPlayerIds, ...ids]);
       return ids.length;
     }, 'Lista importada!');
     if (res) {
       setImportText('');
+      setImportChoices({});
       setImportOpen(false);
     }
   };
@@ -76,8 +79,9 @@ export const PresencePanel: React.FC<{ pelada: Pelada; onGoToTeams?: () => void 
     ...groups.declined.map((p) => ({ p, st: 'declined' as const })),
   ];
 
-  const PlayerRow: React.FC<{ p: Player; status: PresenceStatus }> = ({ p, status }) => (
-    <li className="flex items-center justify-between gap-2 px-3.5 py-2">
+  /** Linha de jogador (chamada como função para não remontar a lista a cada toque). */
+  const PlayerRow = ({ p, status }: { p: Player; status: PresenceStatus }) => (
+    <li key={p.id} className="flex items-center justify-between gap-2 px-3.5 py-2">
       <div className="flex items-center gap-2.5 min-w-0">
         <PlayerAvatar player={p} size={26} />
         <span className="text-sm text-white truncate">{playerLabel(p)}</span>
@@ -146,6 +150,13 @@ export const PresencePanel: React.FC<{ pelada: Pelada; onGoToTeams?: () => void 
             placeholder={'Cole a lista com o nível na frente (1 = melhor, 6 = mais fraco):\nSaladinha 1\nPepeu 2\nPedro (GK) 3'}
             className={`${inputClass} leading-relaxed`}
           />
+          <RosterLinesEditor
+            text={importText}
+            onChange={setImportText}
+            players={snapshot.players}
+            choices={importChoices}
+            onChoicesChange={setImportChoices}
+          />
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="text-xs text-slate-400">
               {parsed.length} nome(s) · {parsed.filter((p) => p.skillLevel !== undefined).length} com nível ·{' '}
@@ -171,7 +182,7 @@ export const PresencePanel: React.FC<{ pelada: Pelada; onGoToTeams?: () => void 
         ) : (
           <ul className="rounded-xl bg-[#131613] border border-white/[0.08] divide-y divide-white/[0.06] md:grid md:grid-cols-2 md:divide-y-0">
             {groups.confirmed.map((p) => (
-              <PlayerRow key={p.id} p={p} status="confirmed" />
+              PlayerRow({ p, status: 'confirmed' })
             ))}
           </ul>
         )}
@@ -194,7 +205,7 @@ export const PresencePanel: React.FC<{ pelada: Pelada; onGoToTeams?: () => void 
           {addOpen && (
             <ul className="border-t border-white/[0.06] divide-y divide-white/[0.06] animate-fade-in">
               {others.map(({ p, st }) => (
-                <PlayerRow key={p.id} p={p} status={st} />
+                PlayerRow({ p, status: st })
               ))}
             </ul>
           )}

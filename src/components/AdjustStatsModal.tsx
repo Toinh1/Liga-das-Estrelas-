@@ -60,15 +60,12 @@ export const AdjustStatsModal: React.FC<{ playerId: string; peladas: Pelada[]; o
     if (res) onClose();
   };
 
-  const Stepper: React.FC<{ label: string; field: 'goals' | 'assists'; fromMatches: number }> = ({
-    label,
-    field,
-    fromMatches,
-  }) => {
+  /** Contador de gols/assistências (chamado como função para não remontar a cada toque). */
+  const Stepper = ({ label, field, fromMatches }: { label: string; field: 'goals' | 'assists'; fromMatches: number }) => {
     const v = value[field];
     const diff = v - fromMatches;
     return (
-      <div className="p-3.5 rounded-2xl bg-[#1B1F1B] border border-white/[0.06] space-y-2">
+      <div key={field} className="p-3.5 rounded-2xl bg-[#1B1F1B] border border-white/[0.06] space-y-2">
         <div className="flex items-center justify-between">
           <span className="text-sm font-bold text-white">{label}</span>
           <span className="text-[10px] text-slate-500">
@@ -134,8 +131,8 @@ export const AdjustStatsModal: React.FC<{ playerId: string; peladas: Pelada[]; o
 
             {current && (
               <div className="grid grid-cols-1 gap-2.5">
-                <Stepper label="Gols" field="goals" fromMatches={current.fromGoals} />
-                <Stepper label="Assistências" field="assists" fromMatches={current.fromAssists} />
+                {Stepper({ label: 'Gols', field: 'goals', fromMatches: current.fromGoals })}
+                {Stepper({ label: 'Assistências', field: 'assists', fromMatches: current.fromAssists })}
               </div>
             )}
 

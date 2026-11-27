@@ -8,9 +8,17 @@ export interface EditableRosterItem {
   /** Nível informado na lista (1 = melhor ... 6 = mais fraco). */
   skillLevel?: number;
   isNew: boolean;
+  /** Linha do texto colado em que o nome apareceu. */
+  line: number;
+  /** Nome como foi escrito na lista (sem número, nível ou marcação de goleiro). */
+  typedName: string;
+  /** Todos os jogadores cadastrados com esse nome/apelido (2+ = homônimos). */
+  candidateIds: string[];
+  /** Cadastrar como jogador novo mesmo existindo alguém com o mesmo nome. */
+  forceNew?: boolean;
 }
 
-function normalizeStr(s: string): string {
+export function normalizeStr(s: string): string {
   return s
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -19,10 +27,15 @@ function normalizeStr(s: string): string {
 }
 
 export function matchExistingPlayer(rawName: string, players: Player[]): Player | undefined {
-  const norm = normalizeStr(rawName);
-  if (!norm) return undefined;
+  return findPlayerCandidates(rawName, players)[0];
+}
 
-  return players.find((p) => {
+/** Todos os jogadores cujo nome, apelido ou "nome (apelido)" batem com o texto. */
+export function findPlayerCandidates(rawName: string, players: Player[]): Player[] {
+  const norm = normalizeStr(rawName);
+  if (!norm) return [];
+
+  return players.filter((p) => {
     const nName = normalizeStr(p.name);
     const nNick = p.nickname ? normalizeStr(p.nickname) : '';
     const combo1 = nNick ? `${nName} (${nNick})` : '';
@@ -60,10 +73,10 @@ function detectLeadingBareNumbers(lines: string[]): 'numbering' | 'levels' | 'no
   return nums.every((n) => n >= 1 && n <= 6) ? 'levels' : 'none';
 }
 
-export function parseRosterText(text: string, existingPlayers: Player[]): EditableRosterItem[] {
+/** Lê a lista linha a linha, sem juntar repetidos (cada item guarda a linha de origem). */
+export function parseRosterLines(text: string, existingPlayers: Player[]): EditableRosterItem[] {
   const lines = text.split(/\r?\n/);
   const result: EditableRosterItem[] = [];
-  const seenKeys = new Set<string>();
   let inGoalkeeperSection = false;
   const leadingMode = detectLeadingBareNumbers(lines);
 
@@ -121,10 +134,8 @@ export function parseRosterText(text: string, existingPlayers: Player[]): Editab
     }
     if (!cleaned) continue;
 
-    const matched = matchExistingPlayer(cleaned, existingPlayers);
-    const dedupKey = matched ? `id:${matched.id}` : `name:${normalizeStr(cleaned)}`;
-    if (seenKeys.has(dedupKey)) continue;
-    seenKeys.add(dedupKey);
+    const candidates = findPlayerCandidates(cleaned, existingPlayers);
+    const matched = candidates[0];
 
     result.push({
       key: matched ? matched.id : `new-${i}-${normalizeStr(cleaned)}`,
@@ -133,10 +144,93 @@ export function parseRosterText(text: string, existingPlayers: Player[]): Editab
       matchedPlayerId: matched?.id,
       skillLevel: level,
       isNew: !matched,
+      line: i,
+      typedName: cleaned,
+      candidateIds: candidates.map((p) => p.id),
     });
   }
 
   return result;
+}
+
+/** Lista para importar: um item por pessoa (a mesma pessoa repetida conta uma vez). */
+export function parseRosterText(text: string, existingPlayers: Player[]): EditableRosterItem[] {
+  return resolveRoster(text, existingPlayers, {}).items;
+}
+
+/** Escolha do admin para uma linha: id do jogador cadastrado ou 'new' (pessoa nova). */
+export type RosterChoices = Record<string, string>;
+
+/** Chave da escolha: muda se o nome da linha for editado, para não aplicar escolha antiga. */
+export const rosterChoiceKey = (item: Pick<EditableRosterItem, 'line' | 'typedName'>) =>
+  `${item.line}:${normalizeStr(item.typedName)}`;
+
+export interface RosterRowStatus {
+  item: EditableRosterItem;
+  /** Há mais de um cadastro com esse nome e o admin ainda não escolheu. */
+  ambiguous: boolean;
+  /** Mesma pessoa de uma linha anterior (não conta de novo). */
+  duplicateOfLine?: number;
+  /** Pessoa nova com o mesmo nome de alguém já cadastrado. */
+  homonymNew: boolean;
+}
+
+/**
+ * Aplica as escolhas do admin ("Quem é?") e devolve:
+ *  - rows: situação de cada linha (para a tela de conferência);
+ *  - items: o que será importado, sem repetir pessoas.
+ */
+export function resolveRoster(
+  text: string,
+  existingPlayers: Player[],
+  choices: RosterChoices
+): { rows: RosterRowStatus[]; items: EditableRosterItem[] } {
+  const byId = new Map(existingPlayers.map((p) => [p.id, p]));
+  const rows: RosterRowStatus[] = [];
+  const items: EditableRosterItem[] = [];
+  const firstLineOf = new Map<string, number>(); // pessoa -> linha em que apareceu primeiro
+
+  for (const raw of parseRosterLines(text, existingPlayers)) {
+    const choice = choices[rosterChoiceKey(raw)];
+    let item: EditableRosterItem = raw;
+    if (choice === 'new') {
+      item = {
+        ...raw,
+        key: `new-${raw.line}-${normalizeStr(raw.typedName)}`,
+        name: raw.typedName,
+        matchedPlayerId: undefined,
+        isNew: true,
+        forceNew: true,
+      };
+    } else if (choice && byId.has(choice)) {
+      const p = byId.get(choice)!;
+      item = {
+        ...raw,
+        key: p.id,
+        name: p.nickname || p.name,
+        matchedPlayerId: p.id,
+        isNew: false,
+        position: raw.position === 'Goleiro' ? 'Goleiro' : p.position,
+      };
+    }
+    const personKey = item.matchedPlayerId
+      ? `id:${item.matchedPlayerId}`
+      : item.forceNew
+      ? `line:${item.line}`
+      : `name:${normalizeStr(item.typedName)}`;
+    const firstLine = firstLineOf.get(personKey);
+    if (firstLine === undefined) {
+      firstLineOf.set(personKey, item.line);
+      items.push(item);
+    }
+    rows.push({
+      item,
+      ambiguous: !choice && raw.candidateIds.length > 1,
+      duplicateOfLine: firstLine,
+      homonymNew: Boolean(item.forceNew) && raw.candidateIds.length > 0,
+    });
+  }
+  return { rows, items };
 }
 
 export function formatPlayersToEditableText(
