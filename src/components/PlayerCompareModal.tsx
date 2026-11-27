@@ -68,7 +68,7 @@ export const PlayerCompareModal: React.FC<{ base: Player; onClose: () => void }>
   const other = others.find((p) => p.id === otherId);
 
   const card = (p: Player | undefined, s: PlayerComputedStats | undefined, align: 'left' | 'right') => (
-    <div className={`flex-1 p-3 rounded-2xl bg-[#1F1F1F] border border-white/[0.07] space-y-2 ${align === 'right' ? 'text-right' : ''}`}>
+    <div className={`flex-1 p-3 rounded-2xl bg-[#1B1F1B] border border-white/[0.07] space-y-2 ${align === 'right' ? 'text-right' : ''}`}>
       <div className={`flex items-center gap-2 ${align === 'right' ? 'flex-row-reverse' : ''}`}>
         <PlayerAvatar player={p} size={34} />
         <div className="min-w-0">
@@ -95,7 +95,7 @@ export const PlayerCompareModal: React.FC<{ base: Player; onClose: () => void }>
         <select
           value={otherId}
           onChange={(e) => setOtherId(e.target.value)}
-          className="w-full px-3 py-2.5 rounded-xl bg-[#1F1F1F] border border-white/10 text-sm text-white cursor-pointer"
+          className="w-full px-3 py-2.5 rounded-xl bg-[#1B1F1B] border border-white/10 text-sm text-white cursor-pointer"
           aria-label="Comparar com"
         >
           {others.map((p) => (
@@ -116,7 +116,7 @@ export const PlayerCompareModal: React.FC<{ base: Player; onClose: () => void }>
         />
 
         {other ? (
-          <div className="rounded-2xl bg-[#1F1F1F] border border-white/[0.07] divide-y divide-white/[0.05]">
+          <div className="rounded-2xl bg-[#1B1F1B] border border-white/[0.07] divide-y divide-white/[0.05]">
             {metrics.map((m) => {
               const a = m.get(playerStatsMap[base.id], base);
               const b = m.get(playerStatsMap[other.id], other);

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Award, Crown, Flame, HandHelping, Shield, Sparkles, Trophy } from 'lucide-react';
+import { Award, Crown, Flame, HandHelping, Shield, Sparkles, Star, Trophy } from 'lucide-react';
 import { EmptyState, PageHeader, PlayerAvatar, cardClass, playerLabel } from '../components/ui';
 import { useBaba } from '../context/BabaContext';
 import { babaService } from '../services/babaService';
@@ -78,7 +78,7 @@ export const AwardsPage: React.FC = () => {
             <select
               value={periodKey}
               onChange={(e) => setPeriodKey(e.target.value)}
-              className="px-3 py-2 rounded-xl bg-[#161616] border border-white/10 text-xs font-bold text-white focus:outline-none focus:border-lime-400 cursor-pointer"
+              className="px-3 py-2 rounded-xl bg-[#131613] border border-white/10 text-xs font-bold text-white focus:outline-none focus:border-lime-400 cursor-pointer"
               aria-label="Período da premiação"
             >
               {snapshot.seasons.length > 0 && (
@@ -125,7 +125,7 @@ export const AwardsPage: React.FC = () => {
                       <div className="flex -space-x-3 pt-1">
                         {winners.slice(0, 4).map((p) => (
                           <button key={p!.id} onClick={() => openPlayerProfile(p!.id)} className="cursor-pointer" title={playerLabel(p)}>
-                            <PlayerAvatar player={p} size={64} className="border-2 border-[#161616] ring-2 ring-white/10" />
+                            <PlayerAvatar player={p} size={64} className="border-2 border-[#131613] ring-2 ring-white/10" />
                           </button>
                         ))}
                       </div>
@@ -154,10 +154,10 @@ export const AwardsPage: React.FC = () => {
                       onChange={(e) =>
                         runAction(
                           () => babaService.setSeasonRevelation(result.season!.id, e.target.value || null),
-                          'Revelação definida! ✨'
+                          'Revelação definida!'
                         )
                       }
-                      className="mt-1 w-full px-2.5 py-1.5 rounded-lg bg-[#1F1F1F] border border-white/10 text-xs text-white cursor-pointer"
+                      className="mt-1 w-full px-2.5 py-1.5 rounded-lg bg-[#1B1F1B] border border-white/10 text-xs text-white cursor-pointer"
                       aria-label="Escolher revelação"
                     >
                       <option value="">Escolher revelação…</option>
@@ -201,7 +201,13 @@ export const AwardsPage: React.FC = () => {
                     {awards.length === 0 && <span className="text-[11px] text-slate-500">Sem premiações</span>}
                     {awards.map((a) => (
                       <span key={a.id} className="px-2.5 py-1 rounded-lg bg-white/5 text-[11px] text-slate-200">
-                        {a.category === 'best_player' ? '⭐' : a.category === 'best_goalkeeper' ? '🧤' : '🔥'}{' '}
+                        {a.category === 'best_player' ? (
+                          <Star className="inline w-3.5 h-3.5 -mt-0.5 text-yellow-300" />
+                        ) : a.category === 'best_goalkeeper' ? (
+                          <Shield className="inline w-3.5 h-3.5 -mt-0.5 text-sky-300" />
+                        ) : (
+                          <Flame className="inline w-3.5 h-3.5 -mt-0.5 text-lime-400" />
+                        )}{' '}
                         <span className="text-slate-400">{ROUND_LABEL[a.category]}:</span>{' '}
                         <span className="font-semibold">{a.winnerPlayerIds.map((id) => playerLabel(playerMap.get(id))).join(' & ')}</span>
                       </span>

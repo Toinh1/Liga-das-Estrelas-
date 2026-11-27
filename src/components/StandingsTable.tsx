@@ -1,3 +1,4 @@
+import { Trophy } from 'lucide-react';
 import React from 'react';
 import type { LineStanding } from '../types/domain';
 import { LineBadge } from './LineBadge';
@@ -12,7 +13,7 @@ export const StandingsTable: React.FC<{
 }> = ({ rows, title, finished, showTitles }) => (
   <div className={`${cardClass} overflow-hidden`}>
     <div className="px-4 sm:px-5 py-3 sm:py-3.5 border-b border-white/[0.06] flex items-center justify-between">
-      <h2 className="text-sm font-bold text-white">{title}</h2>
+      <h2 className="text-base font-bold uppercase tracking-wide text-white">{title}</h2>
       <span className="text-[10px] sm:text-[11px] text-slate-500">V=3 • E=1 • D=0</span>
     </div>
     {rows.length === 0 ? (
@@ -24,7 +25,7 @@ export const StandingsTable: React.FC<{
             <tr className="text-[11px] sm:text-xs text-slate-500 border-b border-white/[0.05]">
               <th className="text-left py-2.5 pl-4 sm:pl-5 pr-1 w-8">#</th>
               <th className="text-left py-2.5 px-2">Equipe</th>
-              {showTitles && <th className="text-center py-2.5 px-1.5" title="Títulos">🏆</th>}
+              {showTitles && <th className="text-center py-2.5 px-1.5" title="Títulos">Tít.</th>}
               <th className="text-center py-2.5 px-1.5 font-bold text-slate-200">PTS</th>
               <th className="text-center py-2.5 px-1.5" title="Jogos">J</th>
               <th className="text-center py-2.5 px-1.5" title="Vitórias">V</th>
@@ -41,7 +42,7 @@ export const StandingsTable: React.FC<{
               return (
                 <tr key={row.lineId} className={isLeader ? 'bg-lime-400/[0.06]' : undefined}>
                   <td className="py-2.5 sm:py-3 pl-4 sm:pl-5 pr-1 font-bold text-xs text-slate-400">
-                    {finished && isLeader ? '🏆' : `${idx + 1}º`}
+                    {finished && isLeader ? <Trophy className="w-4 h-4 text-yellow-300" aria-label="Campeã" /> : `${idx + 1}º`}
                   </td>
                   <td className="py-2.5 sm:py-3 px-2">
                     <LineBadge line={row} size="sm" />

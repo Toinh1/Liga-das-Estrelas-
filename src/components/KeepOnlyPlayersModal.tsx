@@ -38,7 +38,7 @@ export const KeepOnlyPlayersModal: React.FC<{ onClose: () => void }> = ({ onClos
     if (!window.confirm(msg)) return;
     const res = await runAction(
       () => babaService.keepOnlyPlayers(preview.keepIds),
-      'Lista do baba atualizada! ⚽'
+      'Lista do baba atualizada!'
     );
     if (res) onClose();
   };

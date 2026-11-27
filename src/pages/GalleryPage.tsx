@@ -24,7 +24,7 @@ const TagPicker: React.FC<{ players: Player[]; value: string[]; onChange: (ids: 
           type="button"
           onClick={() => onChange(on ? value.filter((id) => id !== p.id) : [...value, p.id])}
           className={`inline-flex items-center gap-1.5 pl-1 pr-2.5 py-1 rounded-full text-[11px] font-semibold border transition cursor-pointer ${
-            on ? 'bg-lime-400/15 border-lime-400/50 text-lime-300' : 'bg-[#1F1F1F] border-white/10 text-slate-300'
+            on ? 'bg-lime-400/15 border-lime-400/50 text-lime-300' : 'bg-[#1B1F1B] border-white/10 text-slate-300'
           }`}
         >
           <PlayerAvatar player={p} size={18} />
@@ -114,7 +114,7 @@ export const GalleryPage: React.FC = () => {
     if (!preview || !uploadPeladaId) return;
     const res = await runAction(
       () => babaService.uploadPhoto({ peladaId: uploadPeladaId, url: preview, caption, isOfficial: official, taggedPlayerIds: tags }),
-      'Foto publicada! 📸'
+      'Foto publicada!'
     );
     if (res) setUploadOpen(false);
   };
@@ -172,7 +172,7 @@ export const GalleryPage: React.FC = () => {
           <select
             value={album}
             onChange={(e) => setAlbum(e.target.value)}
-            className="sm:ml-auto px-3 py-2 rounded-xl bg-[#161616] border border-white/10 text-xs font-bold text-white cursor-pointer"
+            className="sm:ml-auto px-3 py-2 rounded-xl bg-[#131613] border border-white/10 text-xs font-bold text-white cursor-pointer"
             aria-label="Filtrar por pelada"
           >
             <option value="ALL">Todas as peladas</option>
@@ -191,7 +191,7 @@ export const GalleryPage: React.FC = () => {
         groups.map((g) => (
           <section key={g.pelada?.id ?? g.items[0].photo.id} className="space-y-2.5">
             <div className="flex items-baseline justify-between px-1">
-              <h2 className="text-sm font-extrabold text-white">{g.pelada?.title ?? 'Pelada'}</h2>
+              <h2 className="text-base font-bold uppercase tracking-wide text-white">{g.pelada?.title ?? 'Pelada'}</h2>
               <span className="text-[11px] text-slate-500">{g.pelada ? formatDateBR(g.pelada.date) : ''}</span>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
@@ -199,11 +199,11 @@ export const GalleryPage: React.FC = () => {
                 <button
                   key={ph.id}
                   onClick={() => setLightbox(index)}
-                  className="relative group aspect-square rounded-2xl overflow-hidden bg-[#1F1F1F] border border-white/[0.06] cursor-pointer"
+                  className="relative group aspect-square rounded-2xl overflow-hidden bg-[#1B1F1B] border border-white/[0.06] cursor-pointer"
                 >
                   <img src={ph.url} alt={ph.caption} loading="lazy" className="w-full h-full object-cover transition duration-300 group-hover:scale-105" />
                   {ph.isOfficial && (
-                    <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-lime-400 text-slate-950 text-[10px] font-extrabold">★ Oficial</span>
+                    <span className="absolute top-2 left-2 px-2 py-0.5 rounded bg-lime-400 text-slate-950 text-[10px] font-bold uppercase tracking-wide">Oficial</span>
                   )}
                   {(ph.taggedPlayerIds?.length ?? 0) > 0 && (
                     <span className="absolute top-2 right-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-black/60 text-[10px] text-white">
@@ -232,7 +232,7 @@ export const GalleryPage: React.FC = () => {
                 </option>
               ))}
             </select>
-            <label className="block w-full p-4 rounded-2xl border-2 border-dashed border-white/15 hover:border-lime-400/50 bg-[#1F1F1F] text-center cursor-pointer transition">
+            <label className="block w-full p-4 rounded-2xl border-2 border-dashed border-white/15 hover:border-lime-400/50 bg-[#1B1F1B] text-center cursor-pointer transition">
               {preview ? (
                 <img src={preview} alt="Prévia" className="max-h-56 mx-auto rounded-xl object-contain" />
               ) : (

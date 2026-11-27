@@ -13,13 +13,13 @@ export function createPlayerAvatarSvg(
     <defs>
       <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
         <stop offset="0%" stop-color="${bgHex}" />
-        <stop offset="100%" stop-color="#0A0A0A" />
+        <stop offset="100%" stop-color="#0B0D0B" />
       </linearGradient>
     </defs>
     <rect width="160" height="160" rx="40" fill="url(#g)" />
     <circle cx="80" cy="80" r="68" fill="none" stroke="${accentHex}" stroke-opacity="0.35" stroke-width="4" />
     <path d="M40 138 C46 112 114 112 120 138" fill="${accentHex}" fill-opacity="0.22" />
-    <text x="80" y="93" text-anchor="middle" font-family="Plus Jakarta Sans, Arial, sans-serif" font-weight="800" font-size="46" fill="#F8FAFC">${initials}</text>
+    <text x="80" y="93" text-anchor="middle" font-family="Barlow Condensed, Arial, sans-serif" font-weight="700" font-size="50" fill="#F8FAFC">${initials}</text>
   </svg>`;
 
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;

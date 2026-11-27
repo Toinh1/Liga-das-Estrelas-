@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Check, ChevronDown, ClipboardCopy, Palette, RefreshCw, Scale, Shuffle, Trash2, X } from 'lucide-react';
+import { ArrowRight, Check, ChevronDown, ClipboardCopy, Palette, RefreshCw, Scale, Shuffle, Trash2, X } from 'lucide-react';
 import { useBaba } from '../../context/BabaContext';
 import { babaService } from '../../services/babaService';
 import { MAX_LINES, MIN_LINES, type LineTeam, type Pelada, type Player } from '../../types/domain';
@@ -12,15 +12,15 @@ import {
   type TeamSummary,
 } from '../../utils/teamBalancer';
 import { LineBadge } from '../LineBadge';
-import { EmptyState, LevelBadge, PlayerAvatar, SkillMeter, cardClass, ghostBtn, inputClass, playerLabel, primaryBtn } from '../ui';
+import { EmptyState, GkTag, LevelBadge, PlayerAvatar, SkillMeter, ghostBtn, inputClass, playerLabel } from '../ui';
 
 const COLOR_PRESETS = [
-  { label: 'Verde', hex: '#22C55E', text: '#0A0A0A' },
-  { label: 'Amarela', hex: '#FACC15', text: '#0A0A0A' },
+  { label: 'Verde', hex: '#22C55E', text: '#0B0D0B' },
+  { label: 'Amarela', hex: '#FACC15', text: '#0B0D0B' },
   { label: 'Vermelha', hex: '#EF4444', text: '#F8FAFC' },
   { label: 'Azul', hex: '#3B82F6', text: '#F8FAFC' },
-  { label: 'Laranja', hex: '#F97316', text: '#0A0A0A' },
-  { label: 'Branca', hex: '#F8FAFC', text: '#0A0A0A' },
+  { label: 'Laranja', hex: '#F97316', text: '#0B0D0B' },
+  { label: 'Branca', hex: '#F8FAFC', text: '#0B0D0B' },
   { label: 'Preta', hex: '#27272A', text: '#F8FAFC' },
   { label: 'Roxa', hex: '#A855F7', text: '#F8FAFC' },
 ];
@@ -46,7 +46,7 @@ const LineColorPicker: React.FC<{
           onClick={() => !active && onPick(l.id)}
           className={`w-5 h-5 rounded-full border transition shrink-0 ${
             active
-              ? 'border-white ring-2 ring-lime-400 ring-offset-1 ring-offset-[#1F1F1F] cursor-default'
+              ? 'border-white ring-2 ring-lime-400 ring-offset-1 ring-offset-[#1B1F1B] cursor-default'
               : 'border-white/20 opacity-50 hover:opacity-100 hover:scale-110 cursor-pointer'
           }`}
           style={{ backgroundColor: l.colorHex }}
@@ -120,7 +120,7 @@ export const TeamsPanel: React.FC<{ pelada: Pelada; onConfirmed?: () => void }> 
     if (!teamsReady) return;
     if (draft) {
       if (hasMatches && !window.confirm('Já existem jogos registrados. Alterar as linhas agora muda a escalação dos próximos jogos. Continuar?')) return;
-      const res = await runAction(() => babaService.saveLineRosters(pelada.id, draft), 'Times confirmados! Bora jogar ⚽');
+      const res = await runAction(() => babaService.saveLineRosters(pelada.id, draft), 'Times confirmados! Bora jogar');
       if (!res) return;
       setDraft(null);
     }
@@ -145,7 +145,7 @@ export const TeamsPanel: React.FC<{ pelada: Pelada; onConfirmed?: () => void }> 
   const confirmDraft = async () => {
     if (!draft) return;
     if (hasMatches && !window.confirm('Já existem jogos registrados. Alterar as linhas agora muda a escalação dos próximos jogos. Continuar?')) return;
-    const res = await runAction(() => babaService.saveLineRosters(pelada.id, draft), 'Times confirmados! 🎲');
+    const res = await runAction(() => babaService.saveLineRosters(pelada.id, draft), 'Times confirmados!');
     if (res) setDraft(null);
   };
 
@@ -208,99 +208,143 @@ export const TeamsPanel: React.FC<{ pelada: Pelada; onConfirmed?: () => void }> 
     });
     navigator.clipboard
       .writeText(`⚽ *${pelada.title} — ${formatShortDateBR(pelada.date)}*\n\n${blocks.join('\n\n')}`)
-      .then(() => pushToast('Times copiados para o WhatsApp! 📋'))
+      .then(() => pushToast('Times copiados para o WhatsApp!'))
       .catch(() => pushToast('Não foi possível copiar', undefined, 'error'));
   };
 
-  return (
-    <div className="space-y-4">
-      {/* BARRA DE CONTROLE */}
-      <div className={`${cardClass} p-4 space-y-3`}>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div className="text-sm font-bold text-white">
-              {lines.length} times • {confirmed.length} confirmados
-            </div>
-            <div className="text-xs text-slate-400">
-              Só confirmados entram no sorteio. Potes por nível (1 = melhor): cada time recebe um jogador de cada pote.
+  const hasTeams = assigned.size > 0 || Boolean(draft);
+  const smallBtn =
+    'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/10 text-xs font-semibold text-slate-300 hover:text-white hover:border-white/25 transition cursor-pointer';
+
+  // ----- níveis dos confirmados (admin) -----
+  const levelsSection = canEdit && confirmed.length > 0 && (() => {
+    const open = levelsOpen ?? !hasTeams;
+    const counts = [1, 2, 3, 4, 5, 6].map((lv) => confirmed.filter((p) => p.skillLevel === lv).length);
+    const k = lines.length || 1;
+    const fitsPots = confirmed.length % k === 0 && counts.every((c) => c % k === 0);
+    const sorted = [...confirmed].sort(
+      (a, b) => a.skillLevel - b.skillLevel || playerLabel(a).localeCompare(playerLabel(b), 'pt-BR')
+    );
+    return (
+      <section className="rounded-xl bg-[#131613] border border-white/[0.08] overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setLevelsOpen(!open)}
+          className="w-full px-3.5 py-3 flex items-center justify-between gap-2 cursor-pointer"
+          aria-expanded={open}
+        >
+          <div className="text-left min-w-0">
+            <div className="text-sm font-semibold text-white">Nível dos confirmados ({confirmed.length})</div>
+            <div className="flex flex-wrap items-center gap-1.5 mt-1">
+              {counts.map((c, i) => (
+                <span key={i} className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-slate-400 tabular-nums">
+                  <LevelBadge level={i + 1} compact />×{c}
+                </span>
+              ))}
             </div>
           </div>
+          <ChevronDown className={`w-4 h-4 text-slate-400 shrink-0 transition ${open ? 'rotate-180' : ''}`} />
+        </button>
+
+        {open && (
+          <div className="px-3.5 pb-3.5 space-y-2.5 animate-fade-in">
+            <p className={`text-xs leading-relaxed ${fitsPots ? 'text-lime-300' : 'text-amber-200'}`}>
+              {fitsPots
+                ? `Fechou: cada um dos ${k} times vai receber ${confirmed.length / k} jogadores, com a mesma quantidade de cada nível.`
+                : `Para cada time ter um jogador de cada nível, cada nível precisa de ${k} jogadores. Ajuste os níveis ou o sorteio vai misturar níveis vizinhos.`}
+            </p>
+            <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-4 divide-y divide-white/[0.05] md:divide-y-0">
+              {sorted.map((p) => (
+                <li key={p.id} className="flex items-center justify-between gap-2 py-1.5">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <PlayerAvatar player={p} size={24} />
+                    <span className="text-sm text-white truncate">{playerLabel(p)}</span>
+                    {p.position === 'Goleiro' && <GkTag />}
+                  </div>
+                  <SkillMeter
+                    value={p.skillLevel}
+                    onChange={(v) => {
+                      if (v === p.skillLevel) return;
+                      setDraft(null);
+                      runAction(() => babaService.setPlayerSkill(p.id, v));
+                    }}
+                  />
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </section>
+    );
+  })();
+
+  return (
+    <div className="space-y-5">
+      {/* RESUMO + AJUSTES (uma linha só) */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="text-sm text-slate-300">
+          <strong className="text-white">{lines.length} times</strong> · {confirmed.length} confirmados
+          {summaries.some((s) => s.playerIds.length) && (
+            <span className="inline-flex items-center gap-1 ml-2 text-xs text-slate-400" title="100% = times idênticos">
+              <Scale className="w-3.5 h-3.5 text-lime-400" /> equilíbrio {balanceIndex}%
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-1.5">
           {canEdit && (
-            <div className="flex items-center gap-1 p-1 rounded-xl bg-[#1F1F1F] border border-white/10">
+            <div className="flex items-center p-0.5 rounded-lg border border-white/10" role="radiogroup" aria-label="Quantidade de times">
               {Array.from({ length: MAX_LINES - MIN_LINES + 1 }, (_, i) => MIN_LINES + i).map((n) => (
                 <button
                   key={n}
+                  role="radio"
+                  aria-checked={lines.length === n}
                   disabled={busyAction}
                   onClick={() => n !== lines.length && setTeamCount(n)}
-                  className={`w-9 h-8 rounded-lg text-xs font-extrabold cursor-pointer transition ${
+                  className={`px-2.5 py-1 rounded-md text-xs font-bold cursor-pointer transition ${
                     lines.length === n ? 'bg-lime-400 text-slate-950' : 'text-slate-400 hover:text-white'
                   }`}
                   title={`${n} times`}
                 >
-                  {n}
+                  {n} times
                 </button>
               ))}
             </div>
           )}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {canEdit && !draft && (
-            <button onClick={runDraw} disabled={busyAction} className={primaryBtn}>
-              <Shuffle className="w-4 h-4" /> Sortear times equilibrados
-            </button>
-          )}
-          {canEdit && draft && (
-            <>
-              <button onClick={confirmDraft} disabled={busyAction} className={primaryBtn}>
-                <Check className="w-4 h-4" /> Confirmar sorteio
-              </button>
-              <button onClick={runDraw} disabled={busyAction} className={ghostBtn}>
-                <RefreshCw className="w-3.5 h-3.5" /> Refazer
-              </button>
-              <button onClick={() => setDraft(null)} className={ghostBtn}>
-                <X className="w-3.5 h-3.5" /> Descartar
-              </button>
-            </>
-          )}
-          <button onClick={copyTeams} className={ghostBtn}>
-            <ClipboardCopy className="w-3.5 h-3.5 text-lime-400" /> Copiar times
-          </button>
           {canEdit && (
             <button
               onClick={() => setColorsOpen((v) => !v)}
-              className={`${ghostBtn} ${colorsOpen ? '!border-lime-400 !text-lime-400' : ''}`}
+              className={`${smallBtn} ${colorsOpen ? '!border-lime-400 !text-lime-400' : ''}`}
+              aria-expanded={colorsOpen}
             >
               <Palette className="w-3.5 h-3.5" /> Cores
             </button>
           )}
-          {summaries.some((s) => s.playerIds.length) && (
-            <span className="inline-flex items-center gap-1.5 ml-auto text-xs font-bold text-slate-300" title="100 = pontuações idênticas">
-              <Scale className="w-4 h-4 text-lime-400" /> Equilíbrio {balanceIndex}%
-            </span>
+          {assigned.size > 0 && (
+            <button onClick={copyTeams} className={smallBtn} title="Copiar times para o WhatsApp">
+              <ClipboardCopy className="w-3.5 h-3.5" /> Copiar
+            </button>
           )}
         </div>
-
-        {draft && (
-          <div className="px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-400/25 text-xs text-amber-200">
-            Prévia do sorteio — ainda não foi salva. Ajuste os jogadores se quiser e toque em
-            “Confirmar sorteio”.
-          </div>
-        )}
       </div>
+
+      {draft && (
+        <p className="px-3.5 py-2.5 rounded-xl bg-amber-500/[0.08] border border-amber-400/25 text-xs text-amber-200 leading-relaxed">
+          Prévia do sorteio, ainda não salva. Troque jogadores de time tocando nas cores, depois confirme no rodapé.
+        </p>
+      )}
 
       {/* CORES / LINHAS */}
       {colorsOpen && canEdit && (
-        <div className={`${cardClass} p-4 space-y-3 animate-fade-in`}>
-          <div className="text-xs font-bold text-slate-300">Linhas (cores) desta pelada:</div>
+        <div className="rounded-xl bg-[#131613] border border-white/[0.08] p-3.5 space-y-3 animate-fade-in">
+          <div className="text-xs font-semibold text-slate-300">Linhas (cores) desta pelada:</div>
           <div className="flex flex-wrap gap-2">
             {snapshot.lines.map((line) => {
               const active = pelada.participatingLineIds.includes(line.id);
               return (
                 <div
                   key={line.id}
-                  className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border ${
-                    active ? 'border-lime-400 bg-lime-400/10' : 'border-white/10 bg-[#1F1F1F] opacity-60'
+                  className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border ${
+                    active ? 'border-lime-400 bg-lime-400/10' : 'border-white/10 bg-[#1B1F1B] opacity-60'
                   }`}
                 >
                   <button type="button" onClick={() => toggleLine(line.id)} className="inline-flex items-center gap-2 cursor-pointer">
@@ -350,205 +394,156 @@ export const TeamsPanel: React.FC<{ pelada: Pelada; onConfirmed?: () => void }> 
         </div>
       )}
 
-      {/* NÍVEL DOS CONFIRMADOS (ADMIN) */}
-      {canEdit && confirmed.length > 0 && (() => {
-        const open = levelsOpen ?? assigned.size === 0;
-        const counts = [1, 2, 3, 4, 5, 6].map((lv) => confirmed.filter((p) => p.skillLevel === lv).length);
-        const k = lines.length;
-        const fitsPots = confirmed.length % k === 0 && counts.every((c) => c % k === 0);
-        const sorted = [...confirmed].sort(
-          (a, b) => a.skillLevel - b.skillLevel || playerLabel(a).localeCompare(playerLabel(b), 'pt-BR')
-        );
-        return (
-          <div className={`${cardClass} !rounded-2xl overflow-hidden`}>
-            <button
-              type="button"
-              onClick={() => setLevelsOpen(!open)}
-              className="w-full px-4 py-3 flex items-center justify-between gap-2 cursor-pointer"
-              aria-expanded={open}
-            >
-              <div className="text-left">
-                <div className="text-sm font-bold text-white">Nível dos confirmados ({confirmed.length})</div>
-                <div className="text-[11px] text-slate-400">1 = melhor • 6 = mais fraco • o sorteio usa estes níveis</div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <div className="hidden sm:flex items-center gap-1">
-                  {counts.map((c, i) => (
-                    <span key={i} className="inline-flex items-center gap-0.5 text-[10px] font-bold text-slate-400">
-                      <LevelBadge level={i + 1} compact />×{c}
-                    </span>
-                  ))}
-                </div>
-                <ChevronDown className={`w-4 h-4 text-slate-400 transition ${open ? 'rotate-180' : ''}`} />
-              </div>
-            </button>
+      {/* Sem times ainda: níveis primeiro, para conferir antes de sortear */}
+      {!hasTeams && levelsSection}
 
-            {open && (
-              <div className="px-4 pb-4 space-y-3 animate-fade-in">
-                <div className="flex sm:hidden flex-wrap items-center gap-1.5">
-                  {counts.map((c, i) => (
-                    <span key={i} className="inline-flex items-center gap-0.5 text-[10px] font-bold text-slate-400">
-                      <LevelBadge level={i + 1} compact />×{c}
-                    </span>
-                  ))}
-                </div>
-                <div
-                  className={`px-3 py-2 rounded-xl text-[11px] ${
-                    fitsPots ? 'bg-lime-400/[0.07] text-lime-200' : 'bg-amber-500/10 text-amber-200'
-                  }`}
-                >
-                  {fitsPots
-                    ? `Fechou: cada um dos ${k} times vai receber ${confirmed.length / k} jogadores, com a mesma quantidade de cada nível.`
-                    : `Para cada time ter um jogador de cada nível, cada nível precisa de ${k} jogadores (${k} times). Ajuste os níveis ou o sorteio vai misturar níveis vizinhos.`}
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5">
-                  {sorted.map((p) => (
-                    <div key={p.id} className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-xl bg-[#1F1F1F]">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <PlayerAvatar player={p} size={24} />
-                        <span className="text-xs font-semibold text-white truncate">{playerLabel(p)}</span>
-                        {p.position === 'Goleiro' && <span className="text-[11px]">🧤</span>}
-                      </div>
-                      <SkillMeter
-                        value={p.skillLevel}
-                        onChange={(v) => {
-                          if (v === p.skillLevel) return;
-                          setDraft(null);
-                          runAction(() => babaService.setPlayerSkill(p.id, v));
-                        }}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        );
-      })()}
-
-      {/* CARTÕES DOS TIMES */}
+      {/* TIMES */}
       {lines.length === 0 ? (
         <EmptyState title="Nenhuma linha selecionada" text="Escolha as cores das equipes em “Cores”." />
-      ) : (
-        <div className={`grid grid-cols-1 sm:grid-cols-2 ${lines.length > 2 ? 'xl:grid-cols-3' : ''} gap-3.5`}>
+      ) : hasTeams || !canEdit ? (
+        <div className={`grid grid-cols-1 sm:grid-cols-2 ${lines.length > 2 ? 'xl:grid-cols-3' : ''} gap-3`}>
           {lines.map((line, i) => {
             const s = summaries[i];
             const teamPlayers = s.playerIds.map((id) => playerById.get(id)).filter((p): p is Player => Boolean(p));
             return (
-              <div key={line.id} className={`${cardClass} overflow-hidden ${draft ? 'ring-1 ring-amber-400/30' : ''}`}>
-                <div className="h-2 w-full" style={{ backgroundColor: line.colorHex }} />
-                <div className="px-4 py-3 border-b border-white/[0.06] flex items-center justify-between gap-2">
+              <section
+                key={line.id}
+                className={`rounded-xl bg-[#131613] border overflow-hidden ${draft ? 'border-dashed' : ''}`}
+                style={{ borderColor: `${line.colorHex}66` }}
+                aria-label={line.name}
+              >
+                <header className="px-3.5 py-2.5 border-b border-white/[0.06] flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <div
-                      className="w-9 h-9 rounded-xl flex items-center justify-center font-black text-xs border border-white/10 shrink-0"
-                      style={{ backgroundColor: line.colorHex, color: line.textColorHex }}
-                      aria-hidden
-                    >
-                      {line.shortName}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-sm font-extrabold text-white truncate">{line.name}</div>
-                      <div className="text-[11px] text-slate-400">
-                        {teamPlayers.length} atletas • {s.goalkeepers} 🧤
-                      </div>
-                      {isAdmin && teamPlayers.length > 0 && (
-                        <div className="flex flex-wrap gap-0.5 mt-1" title="Níveis do time (1 = melhor)">
-                          {s.levelCounts.flatMap((count, level) => Array.from({ length: count }, () => level)).map((lv, i) => (
-                            <LevelBadge key={i} level={lv} compact />
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                    <span className="w-3.5 h-3.5 rounded-sm border border-white/25 shrink-0" style={{ backgroundColor: line.colorHex }} />
+                    <h3 className="font-display font-bold uppercase text-base text-white truncate">{line.name}</h3>
+                    <span className="text-xs text-slate-500 shrink-0">{teamPlayers.length}</span>
                   </div>
-                  <div className="text-right shrink-0">
-                    <div className="font-display font-extrabold text-lime-400 text-lg leading-none">
-                      {teamPlayers.length ? s.averageLevel.toFixed(1).replace('.', ',') : '–'}
-                    </div>
-                    <div className="text-[10px] text-slate-500 mt-0.5">nível médio</div>
-                  </div>
-                </div>
-
-                <div className="p-3 space-y-1.5">
-                  {teamPlayers.length === 0 ? (
-                    <div className="py-4 text-center text-xs text-slate-500">
-                      {canEdit ? 'Sem jogadores — toque em Sortear' : 'Times ainda não definidos'}
-                    </div>
-                  ) : (
-                    teamPlayers.map((p, idx) => (
-                      <div key={p.id} className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-xl bg-[#1F1F1F]">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="text-[11px] font-bold text-slate-500 w-4">{idx + 1}.</span>
-                          <PlayerAvatar player={p} size={24} />
-                          <span className="text-xs font-semibold text-white truncate">{playerLabel(p)}</span>
-                          {p.position === 'Goleiro' ? (
-                            <span className="text-[11px]" title="Goleiro">🧤</span>
-                          ) : (
-                            <span className="text-[10px] text-slate-500">{p.position.slice(0, 3).toUpperCase()}</span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          {isAdmin && <LevelBadge level={p.skillLevel} />}
-                          {canEdit && (
-                            <LineColorPicker
-                              lines={lines}
-                              current={line.id}
-                              playerName={playerLabel(p)}
-                              onPick={(lid) => movePlayer(p.id, lid)}
-                            />
-                          )}
-                        </div>
-                      </div>
-                    ))
+                  {isAdmin && teamPlayers.length > 0 && (
+                    <span className="text-xs text-slate-400 shrink-0" title="Nível médio (1 = melhor)">
+                      média <strong className="font-display text-sm text-white">{s.averageLevel.toFixed(1).replace('.', ',')}</strong>
+                    </span>
                   )}
-                </div>
-              </div>
+                </header>
+
+                {teamPlayers.length === 0 ? (
+                  <div className="py-5 text-center text-xs text-slate-500">
+                    {canEdit ? 'Sem jogadores ainda' : 'Times ainda não definidos'}
+                  </div>
+                ) : (
+                  <ul className="divide-y divide-white/[0.05]">
+                    {teamPlayers.map((p) => (
+                      <li key={p.id} className="flex items-center justify-between gap-2 px-3.5 py-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          {isAdmin && <LevelBadge level={p.skillLevel} compact />}
+                          <PlayerAvatar player={p} size={22} />
+                          <span className="text-sm text-white truncate">{playerLabel(p)}</span>
+                          {p.position === 'Goleiro' && <GkTag />}
+                        </div>
+                        {canEdit && (
+                          <LineColorPicker
+                            lines={lines}
+                            current={line.id}
+                            playerName={playerLabel(p)}
+                            onPick={(lid) => movePlayer(p.id, lid)}
+                          />
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
             );
           })}
         </div>
-      )}
+      ) : null}
 
       {/* CONFIRMADOS SEM TIME */}
-      {unassigned.length > 0 && (
-        <div className={`${cardClass} !rounded-2xl p-4 space-y-2`}>
-          <div className="text-xs font-bold text-amber-300">Confirmados sem time ({unassigned.length})</div>
-          <div className="flex flex-wrap gap-2">
+      {hasTeams && unassigned.length > 0 && (
+        <section className="rounded-xl border border-amber-400/30 p-3.5 space-y-2">
+          <div className="text-xs font-semibold text-amber-300">Confirmados sem time ({unassigned.length})</div>
+          <ul className="divide-y divide-white/[0.05]">
             {unassigned.map((p) => (
-              <div key={p.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-[#1F1F1F] text-xs text-white">
-                <span>{playerLabel(p)}</span>
-                {canEdit && (
-                  <LineColorPicker lines={lines} playerName={playerLabel(p)} onPick={(lid) => movePlayer(p.id, lid)} />
-                )}
-              </div>
+              <li key={p.id} className="flex items-center justify-between gap-2 py-1.5">
+                <span className="text-sm text-white truncate">{playerLabel(p)}</span>
+                {canEdit && <LineColorPicker lines={lines} playerName={playerLabel(p)} onPick={(lid) => movePlayer(p.id, lid)} />}
+              </li>
             ))}
-          </div>
+          </ul>
+        </section>
+      )}
+
+      {/* O QUE FALTA AJUSTAR */}
+      {canEdit && hasTeams && !teamsReady && (
+        <div className="px-3.5 py-3 rounded-xl bg-amber-500/[0.08] border border-amber-400/25 text-xs text-amber-200 space-y-0.5">
+          <div className="font-semibold">Ajuste antes de confirmar:</div>
+          {teamIssues.map((t) => (
+            <div key={t}>• {t}</div>
+          ))}
         </div>
       )}
 
-      {/* CONFIRMAR TIMES E IR PARA OS JOGOS */}
-      {canEdit && lines.length > 0 && (assigned.size > 0 || draft) && (
-        <div className="space-y-2">
-          {!teamsReady && (
-            <div className="px-4 py-3 rounded-2xl bg-amber-500/10 border border-amber-400/25 text-xs text-amber-200 space-y-0.5">
-              <div className="font-bold">Ajuste antes de confirmar:</div>
-              {teamIssues.map((t) => (
-                <div key={t}>• {t}</div>
-              ))}
-            </div>
-          )}
-          <button
-            type="button"
-            onClick={confirmAndPlay}
-            disabled={!teamsReady || busyAction}
-            className={`${primaryBtn} w-full !py-3.5 !text-sm`}
-          >
-            <Check className="w-4 h-4" />
-            {draft ? 'Confirmar times e ir para os jogos' : 'Times confirmados — ir para os jogos'}
-          </button>
-          {teamsReady && (
-            <p className="text-center text-[11px] text-lime-300/80">
-              ✓ Todas as linhas estão com o nivelamento correto.
-            </p>
-          )}
+      {/* Com times montados: níveis ficam embaixo, recolhidos */}
+      {hasTeams && levelsSection}
+
+      {/* AÇÕES DO ADMIN: fixas no rodapé */}
+      {canEdit && lines.length > 0 && (
+        <div className="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] lg:bottom-4 z-10">
+          <div className="flex gap-2 p-2 rounded-xl bg-[#0E110E]/95 border border-white/10 shadow-[0_8px_24px_-8px_rgba(0,0,0,0.8)] backdrop-blur">
+            {draft ? (
+              <>
+                <button
+                  onClick={runDraw}
+                  disabled={busyAction}
+                  title="Sortear de novo"
+                  aria-label="Sortear de novo"
+                  className="inline-flex items-center justify-center px-3.5 py-3 rounded-lg border border-white/15 text-slate-200 hover:bg-white/[0.06] transition cursor-pointer disabled:opacity-40"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setDraft(null)}
+                  title="Descartar sorteio"
+                  aria-label="Descartar sorteio"
+                  className="inline-flex items-center justify-center px-3.5 py-3 rounded-lg border border-white/15 text-slate-200 hover:bg-white/[0.06] transition cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={teamsReady ? confirmAndPlay : confirmDraft}
+                  disabled={busyAction}
+                  className="flex-1 inline-flex items-center justify-center gap-2 py-3 rounded-lg bg-lime-400 hover:bg-lime-300 text-slate-950 text-sm font-bold transition cursor-pointer disabled:opacity-50"
+                >
+                  <Check className="w-4 h-4" strokeWidth={2.6} />
+                  {teamsReady ? 'Confirmar e ir aos jogos' : 'Salvar sorteio'}
+                </button>
+              </>
+            ) : hasTeams ? (
+              <>
+                <button
+                  onClick={runDraw}
+                  disabled={busyAction}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg border border-white/15 text-slate-200 hover:bg-white/[0.06] text-sm font-semibold transition cursor-pointer disabled:opacity-40"
+                >
+                  <Shuffle className="w-4 h-4" /> Sortear de novo
+                </button>
+                <button
+                  onClick={confirmAndPlay}
+                  disabled={!teamsReady || busyAction}
+                  className="flex-1 inline-flex items-center justify-center gap-2 py-3 rounded-lg bg-lime-400 hover:bg-lime-300 text-slate-950 text-sm font-bold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Ir para os jogos <ArrowRight className="w-4 h-4" />
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={runDraw}
+                disabled={busyAction}
+                className="flex-1 inline-flex items-center justify-center gap-2 py-3 rounded-lg bg-lime-400 hover:bg-lime-300 text-slate-950 text-sm font-bold transition cursor-pointer disabled:opacity-50"
+              >
+                <Shuffle className="w-4 h-4" /> Sortear times equilibrados
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>

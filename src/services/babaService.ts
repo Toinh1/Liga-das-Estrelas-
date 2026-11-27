@@ -205,8 +205,8 @@ async function uploadImageIfDataUrl(storagePath: string, maybeDataUrl: string): 
 }
 
 const DEFAULT_LINES = (now: string): LineTeam[] => [
-  { id: 'line-laranja', name: 'Linha Laranja', shortName: 'LAR', colorHex: '#F97316', textColorHex: '#0A0A0A', createdAt: now },
-  { id: 'line-branca', name: 'Linha Branca', shortName: 'BRA', colorHex: '#F8FAFC', textColorHex: '#0A0A0A', createdAt: now },
+  { id: 'line-laranja', name: 'Linha Laranja', shortName: 'LAR', colorHex: '#F97316', textColorHex: '#0B0D0B', createdAt: now },
+  { id: 'line-branca', name: 'Linha Branca', shortName: 'BRA', colorHex: '#F8FAFC', textColorHex: '#0B0D0B', createdAt: now },
   { id: 'line-preta', name: 'Linha Preta', shortName: 'PRE', colorHex: '#27272A', textColorHex: '#F8FAFC', createdAt: now },
   { id: 'line-azul', name: 'Linha Azul', shortName: 'AZU', colorHex: '#3B82F6', textColorHex: '#F8FAFC', createdAt: now },
   { id: 'line-amarela', name: 'Linha Amarela', shortName: 'AMA', colorHex: '#FACC15', textColorHex: '#090B0E', createdAt: now },

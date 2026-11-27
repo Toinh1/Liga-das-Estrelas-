@@ -6,7 +6,7 @@ export const HELP_SEEN_KEY = 'fb3_help_seen_v1';
 
 const STEPS_ADMIN = [
   { title: 'Crie a pelada', text: 'Toque no botão verde + (no meio da barra de baixo). A data já vem na próxima quarta, 20h.' },
-  { title: 'Marque a presença', text: 'Na aba Presença, toque no ✓ de quem vai, ou cole a lista do WhatsApp.' },
+  { title: 'Marque a presença', text: 'Na aba Presença, cole a lista do WhatsApp em "Importar lista" ou confirme cada jogador.' },
   { title: 'Sorteie os times', text: 'Na aba Times, confira o nível de cada um (1 = melhor, 6 = mais fraco), toque em Sortear e depois em Confirmar.' },
   { title: 'Registre os jogos', text: 'Na aba Jogos, a cada partida coloque o placar e quem fez gol e assistência.' },
   { title: 'Encerre a pelada', text: 'No fim, toque em "Encerrar o Baba". O app define a linha campeã e as premiações.' },
@@ -36,13 +36,13 @@ export const HelpModal: React.FC<{ isAdmin: boolean; onClose: () => void }> = ({
     <Modal title="Como funciona o FutebolB3" onClose={onClose}>
       <div className="p-4 sm:p-5 space-y-5">
         <section className="space-y-2.5">
-          <h3 className="text-xs font-black uppercase tracking-wider text-lime-400">
+          <h3 className="text-base font-bold uppercase text-white">
             {isAdmin ? 'Como tocar a pelada (admin)' : 'Como participar'}
           </h3>
           <ol className="space-y-2">
             {steps.map((s, i) => (
               <li key={s.title} className="flex gap-3">
-                <span className="w-6 h-6 rounded-full bg-lime-400 text-slate-950 text-xs font-black flex items-center justify-center shrink-0">
+                <span className="w-6 h-6 rounded-md bg-lime-400/15 text-lime-400 font-display text-sm font-bold flex items-center justify-center shrink-0">
                   {i + 1}
                 </span>
                 <div className="min-w-0">
@@ -55,7 +55,7 @@ export const HelpModal: React.FC<{ isAdmin: boolean; onClose: () => void }> = ({
         </section>
 
         <section className="space-y-2">
-          <h3 className="text-xs font-black uppercase tracking-wider text-lime-400">O que tem em cada tela</h3>
+          <h3 className="text-base font-bold uppercase text-white">O que tem em cada tela</h3>
           <div className="space-y-1.5">
             {SECTIONS.map((s) => {
               const Icon = s.icon;

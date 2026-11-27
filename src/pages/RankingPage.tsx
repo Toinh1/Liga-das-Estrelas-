@@ -1,20 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { CalendarRange, Check, ExternalLink, Lock, Pencil, Plus, Trophy } from 'lucide-react';
+import { CalendarRange, Check, Crown, ExternalLink, Flame, Lock, Pencil, Plus, Trophy } from 'lucide-react';
 import { AdjustStatsModal } from '../components/AdjustStatsModal';
 import { StandingsTable } from '../components/StandingsTable';
-import {
-  ChipGroup,
-  EmptyState,
-  PageHeader,
-  PeriodSelect,
-  PlayerAvatar,
-  SegmentedTabs,
-  cardClass,
-  ghostBtn,
-  inputClass,
-  playerLabel,
-  primaryBtn,
-} from '../components/ui';
+import { ChipGroup, EmptyState, PageHeader, PeriodSelect, PlayerAvatar, PosMark, SegmentedTabs, cardClass, ghostBtn, inputClass, playerLabel, primaryBtn } from '../components/ui';
 import { useBaba } from '../context/BabaContext';
 import { babaService } from '../services/babaService';
 import type { PlayerComputedStats } from '../types/domain';
@@ -167,7 +155,7 @@ export const RankingPage: React.FC = () => {
           {isAdmin && (
             <div
               className={`flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-2xl border ${
-                editMode ? 'bg-yellow-400/[0.08] border-yellow-400/30' : 'bg-[#161616] border-white/[0.07]'
+                editMode ? 'bg-yellow-400/[0.08] border-yellow-400/30' : 'bg-[#131613] border-white/[0.07]'
               }`}
             >
               <span className="text-[11px] text-slate-300 leading-snug">
@@ -221,8 +209,8 @@ export const RankingPage: React.FC = () => {
                           onClick={() => (editMode && isAdmin ? setEditPlayerId(s.playerId) : openPlayerProfile(s.playerId))}
                           className={`hover:bg-white/[0.03] transition cursor-pointer ${pos === 1 ? 'bg-lime-400/[0.05]' : ''}`}
                         >
-                          <td className="py-2.5 pl-4 pr-2 text-xs font-bold text-slate-400">
-                            {pos === 1 ? '🥇' : pos === 2 ? '🥈' : pos === 3 ? '🥉' : `${pos}º`}
+                          <td className="py-2.5 pl-4 pr-2">
+                            <PosMark pos={pos} />
                           </td>
                           <td className="py-2.5 px-2">
                             <div className="flex items-center gap-2.5 min-w-0">
@@ -288,7 +276,7 @@ export const RankingPage: React.FC = () => {
                     <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
                       <span>{matchCount} jogo(s)</span>
                       <span>• {p.presentPlayerIds.length} atletas</span>
-                      {champ && <span className="text-yellow-400 font-semibold">• 🏆 {champ.name}</span>}
+                      {champ && <span className="inline-flex items-center gap-1 text-yellow-300 font-semibold">• <Trophy className="w-3.5 h-3.5" /> {champ.name}</span>}
                       {p.status !== 'finished' && <span className="text-lime-400 font-semibold">• em aberto</span>}
                     </div>
                   </div>
@@ -327,7 +315,7 @@ export const RankingPage: React.FC = () => {
                 e.preventDefault();
                 await runAction(
                   () => babaService.createSeason({ name: seasonName, startDate: seasonStart }),
-                  'Temporada aberta! 🏁'
+                  'Temporada aberta!'
                 );
               }}
               className={`${cardClass} p-4 flex flex-wrap items-end gap-3`}
@@ -426,7 +414,7 @@ export const RankingPage: React.FC = () => {
                       ['Atletas', participants],
                       ['Títulos decididos', seasonPeladas.filter((p) => p.championLineId).length],
                     ].map(([label, value]) => (
-                      <div key={label} className="p-2.5 rounded-2xl bg-[#1F1F1F] border border-white/5">
+                      <div key={label} className="p-2.5 rounded-2xl bg-[#1B1F1B] border border-white/5">
                         <div className="font-display font-extrabold text-white text-lg">{value}</div>
                         <div className="text-[10px] text-slate-500">{label}</div>
                       </div>
@@ -435,13 +423,13 @@ export const RankingPage: React.FC = () => {
                   {(scorer || winner) && (
                     <div className="flex flex-wrap gap-2 text-xs">
                       {scorer && (
-                        <span className="px-3 py-1.5 rounded-xl bg-lime-400/10 text-lime-300 font-semibold">
-                          🔥 Artilheiro: {playerLabel(playerMap.get(scorer.playerId))} ({scorer.goals})
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-lime-400/10 text-lime-300 font-semibold">
+                          <Flame className="w-3.5 h-3.5" /> Artilheiro: {playerLabel(playerMap.get(scorer.playerId))} ({scorer.goals})
                         </span>
                       )}
                       {winner && (
-                        <span className="px-3 py-1.5 rounded-xl bg-emerald-400/10 text-emerald-300 font-semibold">
-                          👑 Mais vitórias: {playerLabel(playerMap.get(winner.playerId))} ({winner.matchWins})
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-400/10 text-emerald-300 font-semibold">
+                          <Crown className="w-3.5 h-3.5" /> Mais vitórias: {playerLabel(playerMap.get(winner.playerId))} ({winner.matchWins})
                         </span>
                       )}
                     </div>

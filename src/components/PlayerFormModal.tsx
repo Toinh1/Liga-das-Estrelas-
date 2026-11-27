@@ -70,7 +70,7 @@ export const PlayerFormModal: React.FC<{
             photoUrl: photo || undefined,
             email: email || undefined,
           }),
-        'Jogador cadastrado! ⚽'
+        'Jogador cadastrado!'
       );
       if (res) {
         onSaved?.(res.value);
@@ -83,7 +83,7 @@ export const PlayerFormModal: React.FC<{
     <Modal title={player ? 'Editar jogador' : 'Novo jogador'} onClose={onClose}>
       <form onSubmit={handleSubmit} className="p-5 space-y-4">
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl bg-[#1F1F1F] border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
+          <div className="w-16 h-16 rounded-2xl bg-[#1B1F1B] border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
             {photo ? (
               <img src={photo} alt="" className="w-full h-full object-cover" />
             ) : (

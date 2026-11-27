@@ -68,7 +68,7 @@ export const AdjustStatsModal: React.FC<{ playerId: string; peladas: Pelada[]; o
     const v = value[field];
     const diff = v - fromMatches;
     return (
-      <div className="p-3.5 rounded-2xl bg-[#1F1F1F] border border-white/[0.06] space-y-2">
+      <div className="p-3.5 rounded-2xl bg-[#1B1F1B] border border-white/[0.06] space-y-2">
         <div className="flex items-center justify-between">
           <span className="text-sm font-bold text-white">{label}</span>
           <span className="text-[10px] text-slate-500">

@@ -1,38 +1,70 @@
 @import "tailwindcss";
 
 /* ============================================================
-   Identidade FutebolB3: verde-neon + dourado + prata sobre preto
-   (substitui as cores de destaque usadas em todo o app)
+   Identidade FutebolB3 — "clube à noite"
+   Preto de gramado à noite, verde do escudo (sem brilho neon),
+   dourado só para troféus. Títulos em Barlow Condensed, como
+   placar de estádio; texto em Barlow. Cantos firmes, sem pílulas.
    ============================================================ */
 @theme {
-  --color-lime-200: #c8f9b4;
-  --color-lime-300: #7cf05a;
-  --color-lime-400: #3fe21a;
-  --color-lime-500: #2fc40f;
-  --color-yellow-200: #fbe3a0;
-  --color-yellow-300: #f5c542;
-  --color-yellow-400: #e9ae17;
-  --font-brand: 'Exo 2', 'Plus Jakarta Sans', sans-serif;
+  --font-sans: 'Barlow', system-ui, -apple-system, sans-serif;
+  --font-display: 'Barlow Condensed', 'Barlow', sans-serif;
+  --font-brand: 'Barlow Condensed', 'Barlow', sans-serif;
+
+  /* Verde do escudo, um pouco menos saturado para não "brilhar" */
+  --color-lime-200: #c4edb3;
+  --color-lime-300: #78db5a;
+  --color-lime-400: #52cc33;
+  --color-lime-500: #3fae22;
+  --color-yellow-200: #f3dfa6;
+  --color-yellow-300: #e9c357;
+  --color-yellow-400: #d9a92a;
+
+  /* Cinzas puxados para o verde (no lugar do cinza-azulado padrão) */
+  --color-slate-100: #eef1ec;
+  --color-slate-200: #dde2da;
+  --color-slate-300: #bfc6bb;
+  --color-slate-400: #979f93;
+  --color-slate-500: #7c8478;
+  --color-slate-600: #5b6258;
+  --color-slate-700: #3f453d;
+  --color-slate-800: #272b26;
+  --color-slate-900: #181b17;
+  --color-slate-950: #0b0d0a;
+
+  /* Cantos firmes: nada de cartões "bolha" */
+  --radius-lg: 0.375rem;
+  --radius-xl: 0.5rem;
+  --radius-2xl: 0.625rem;
+  --radius-3xl: 0.75rem;
 }
 
 @layer base {
-  :root {
-    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-    --font-display: 'Exo 2', 'Plus Jakarta Sans', sans-serif;
-  }
-
   body {
     font-family: var(--font-sans);
-    background-color: #0A0A0A;
-    color: #F8FAFC;
+    background-color: #0b0d0b;
+    color: #eef1ec;
     overflow-x: hidden;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
+    /* Números alinhados em placares, tabelas e estatísticas */
+    font-variant-numeric: tabular-nums;
+  }
+
+  ::selection {
+    background: #52cc33;
+    color: #0b0d0a;
+  }
+
+  :focus-visible {
+    outline: 2px solid #52cc33;
+    outline-offset: 2px;
   }
 
   /* Evita zoom automático no iPhone/Safari ao focar em inputs */
   input, select, textarea {
     font-size: 16px !important;
+    caret-color: #52cc33;
   }
   @media (min-width: 640px) {
     input, select, textarea {
@@ -42,23 +74,28 @@
 
   h1, h2, h3, .font-display {
     font-family: var(--font-display);
+    letter-spacing: 0.005em;
   }
 
-  /* Títulos no estilo do logo: pesado e em itálico */
+  /* Títulos de tela: condensado, em caixa alta, como placa de estádio */
   h1 {
-    font-weight: 900;
-    font-style: italic;
-    letter-spacing: -0.01em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.01em;
+    line-height: 1.05;
+  }
+  h2, h3 {
+    font-weight: 700;
   }
   .font-display {
-    font-weight: 800;
+    font-weight: 700;
   }
 }
 
 @keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
@@ -67,21 +104,12 @@
   }
 }
 
-@keyframes pulseLime {
-  0%, 100% {
-    box-shadow: 0 0 0 0 rgba(163, 230, 53, 0.35);
-  }
-  50% {
-    box-shadow: 0 0 24px 4px rgba(163, 230, 53, 0.18);
-  }
-}
-
 @keyframes floatTrophy {
   0%, 100% {
-    transform: translateY(0px) scale(1);
+    transform: translateY(0px);
   }
   50% {
-    transform: translateY(-6px) scale(1.03);
+    transform: translateY(-4px);
   }
 }
 
@@ -97,45 +125,44 @@
 }
 
 .animate-fade-in {
-  animation: fadeInUp 0.28s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.animate-pulse-lime {
-  animation: pulseLime 2.5s infinite;
+  animation: fadeInUp 0.22s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 .animate-trophy {
   animation: floatTrophy 3s ease-in-out infinite;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in,
+  .animate-trophy {
+    animation: none;
+  }
+}
+
+/* Superfície lisa (antes: manchas de degradê verde) */
 .pitch-pattern {
-  background-image:
-    radial-gradient(circle at 85% 15%, rgba(163, 230, 53, 0.14), transparent 45%),
-    radial-gradient(circle at 10% 90%, rgba(34, 197, 94, 0.1), transparent 40%),
-    linear-gradient(180deg, rgba(24, 24, 24, 0.95) 0%, rgba(16, 16, 16, 0.98) 100%);
+  background-color: #131613;
 }
 
+/* Cerimônia de encerramento: o único momento com luz dourada */
 .gold-ceremony-bg {
-  background-image:
-    radial-gradient(circle at 50% 0%, rgba(250, 204, 21, 0.25), transparent 55%),
-    radial-gradient(circle at 85% 80%, rgba(163, 230, 53, 0.16), transparent 45%),
-    linear-gradient(180deg, #181818 0%, #0A0A0A 100%);
+  background-image: radial-gradient(ellipse 70% 45% at 50% 0%, rgba(217, 169, 42, 0.16), transparent 70%);
+  background-color: #111410;
 }
 
-/* Custom sleek dark scrollbar */
 ::-webkit-scrollbar {
   width: 7px;
   height: 7px;
 }
 ::-webkit-scrollbar-track {
-  background: #0A0A0A;
+  background: #0b0d0b;
 }
 ::-webkit-scrollbar-thumb {
-  background: #2A2A2A;
-  border-radius: 9999px;
+  background: #2a2f29;
+  border-radius: 2px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3A3A3A;
+  background: #3f453d;
 }
 
 /* Carrosséis horizontais sem barra de rolagem visível */
@@ -146,17 +173,10 @@
   display: none;
 }
 
-/* Texto prateado (como "Futebol" no logo) e verde-neon (como "B3") */
+/* Nome da marca: "Futebol" em branco, "B3" no verde do escudo (cores sólidas) */
 .text-chrome {
-  background: linear-gradient(180deg, #ffffff 0%, #d4d4d8 45%, #8b8b94 55%, #e4e4e7 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: #eef1ec;
 }
 .text-neon {
-  color: #3fe21a;
-  text-shadow: 0 0 12px rgba(63, 226, 26, 0.45);
-}
-.brand-glow {
-  filter: drop-shadow(0 0 18px rgba(63, 226, 26, 0.28));
+  color: #52cc33;
 }

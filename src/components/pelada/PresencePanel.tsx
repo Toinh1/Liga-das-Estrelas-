@@ -1,11 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import { ArrowRight, Check, ChevronDown, ClipboardCopy, ClipboardPaste, RotateCcw, UserPlus, X } from 'lucide-react';
+import { ArrowRight, Check, ChevronDown, ClipboardCopy, ClipboardPaste, UserPlus, X } from 'lucide-react';
 import { useBaba } from '../../context/BabaContext';
 import { babaService } from '../../services/babaService';
 import type { Pelada, Player, PresenceStatus } from '../../types/domain';
 import { parseRosterText } from '../../utils/rosterParser';
 import { formatShortDateBR } from '../../utils/statsEngine';
-import { PlayerAvatar, StatTile, cardClass, ghostBtn, inputClass, playerLabel, primaryBtn } from '../ui';
+import { GkTag, PlayerAvatar, inputClass, playerLabel, primaryBtn } from '../ui';
 
 export function getPresenceGroups(pelada: Pelada, players: Player[]) {
   const byId = new Map(players.map((p) => [p.id, p]));
@@ -66,77 +66,79 @@ export const PresencePanel: React.FC<{ pelada: Pelada; onGoToTeams?: () => void 
       .join('\n');
     navigator.clipboard
       .writeText(text)
-      .then(() => pushToast('Lista copiada! 📋'))
+      .then(() => pushToast('Lista copiada!'))
       .catch(() => pushToast('Não foi possível copiar', undefined, 'error'));
   };
 
+  const canEdit = isAdmin && !isFinished;
+  const others = [
+    ...groups.pending.map((p) => ({ p, st: 'pending' as const })),
+    ...groups.declined.map((p) => ({ p, st: 'declined' as const })),
+  ];
+
   const PlayerRow: React.FC<{ p: Player; status: PresenceStatus }> = ({ p, status }) => (
-    <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-[#1F1F1F]">
-      <div className="flex items-center gap-2 min-w-0">
+    <li className="flex items-center justify-between gap-2 px-3.5 py-2">
+      <div className="flex items-center gap-2.5 min-w-0">
         <PlayerAvatar player={p} size={26} />
-        <span className="text-xs font-semibold text-white truncate">{playerLabel(p)}</span>
-        {p.position === 'Goleiro' && <span className="text-[11px]">🧤</span>}
-        {p.id === user.playerId && <span className="text-[10px] text-lime-400 font-bold">você</span>}
+        <span className="text-sm text-white truncate">{playerLabel(p)}</span>
+        {p.position === 'Goleiro' && <GkTag />}
+        {p.id === user.playerId && <span className="text-[11px] text-lime-400 font-semibold">você</span>}
+        {status === 'declined' && <span className="text-[11px] text-rose-300">não vai</span>}
       </div>
-      {isAdmin && !isFinished && (
-        <div className="flex items-center gap-1 shrink-0">
-          {status !== 'confirmed' && (
-            <button
-              disabled={busyAction}
-              onClick={() => setFor(p.id, 'confirmed')}
-              className="p-1.5 rounded-lg bg-lime-400/10 text-lime-400 hover:bg-lime-400/20 cursor-pointer disabled:opacity-40"
-              title="Marcar como confirmado"
-            >
-              <Check className="w-3.5 h-3.5" />
-            </button>
-          )}
-          {status !== 'declined' && (
-            <button
-              disabled={busyAction}
-              onClick={() => setFor(p.id, 'declined')}
-              className="p-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 cursor-pointer disabled:opacity-40"
-              title="Marcar como ausente"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
-          {status !== 'pending' && (
-            <button
-              disabled={busyAction}
-              onClick={() => setFor(p.id, 'pending')}
-              className="p-1.5 rounded-lg bg-white/5 text-slate-400 hover:text-white cursor-pointer disabled:opacity-40"
-              title="Voltar para pendente"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
-      )}
-    </div>
+      {canEdit &&
+        (status === 'confirmed' ? (
+          <button
+            disabled={busyAction}
+            onClick={() => setFor(p.id, 'declined')}
+            className="p-2 -mr-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-white/[0.06] transition cursor-pointer disabled:opacity-40"
+            title="Tirar da lista"
+            aria-label={`Tirar ${playerLabel(p)} da lista`}
+          >
+            <X className="w-4 h-4" />
+          </button>
+        ) : (
+          <button
+            disabled={busyAction}
+            onClick={() => setFor(p.id, 'confirmed')}
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 -mr-1 rounded-lg border border-lime-400/40 text-lime-300 hover:bg-lime-400/10 text-xs font-semibold transition cursor-pointer disabled:opacity-40"
+            aria-label={`Colocar ${playerLabel(p)} na lista`}
+          >
+            <Check className="w-3.5 h-3.5" strokeWidth={3} /> Confirmar
+          </button>
+        ))}
+    </li>
   );
 
   return (
-    <div className="space-y-4">
-      {/* INDICADORES */}
-      <div className="grid grid-cols-3 gap-2">
-        <StatTile label="Confirmados" value={groups.confirmed.length} tone="lime" />
-        <StatTile label="Pendentes" value={groups.pending.length} tone="yellow" />
-        <StatTile label="Ausentes" value={groups.declined.length} tone="rose" />
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2">
-        <button onClick={copyList} className={ghostBtn}>
-          <ClipboardCopy className="w-3.5 h-3.5 text-lime-400" /> Copiar lista
+    <div className="space-y-5">
+      {/* RESUMO EM UMA LINHA */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-slate-300">
+          <strong className="text-lime-400">{groups.confirmed.length} confirmados</strong>
+          <span className="text-slate-500"> · {groups.pending.length} sem resposta · {groups.declined.length} não vão</span>
+        </p>
+        <button
+          onClick={copyList}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/10 text-xs font-semibold text-slate-300 hover:text-white hover:border-white/25 transition cursor-pointer"
+          title="Copiar lista para o WhatsApp"
+        >
+          <ClipboardCopy className="w-3.5 h-3.5" /> Copiar
         </button>
-        {isAdmin && !isFinished && (
-          <button onClick={() => setImportOpen((v) => !v)} className={ghostBtn}>
-            <ClipboardPaste className="w-3.5 h-3.5 text-lime-400" /> Importar lista do WhatsApp
-          </button>
-        )}
       </div>
 
-      {importOpen && isAdmin && (
-        <div className={`${cardClass} p-4 space-y-3 animate-fade-in`}>
+      {/* IMPORTAR DO WHATSAPP (aberto pelo rodapé) */}
+      {importOpen && canEdit && (
+        <section className="rounded-xl bg-[#131613] border border-lime-400/30 p-3.5 space-y-3 animate-fade-in">
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-sm font-semibold text-white">Importar lista do WhatsApp</h3>
+            <button
+              onClick={() => setImportOpen(false)}
+              className="p-1.5 -mr-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.06] cursor-pointer"
+              aria-label="Fechar importação"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
           <textarea
             rows={7}
             value={importText}
@@ -146,72 +148,85 @@ export const PresencePanel: React.FC<{ pelada: Pelada; onGoToTeams?: () => void 
           />
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="text-xs text-slate-400">
-              {parsed.length} nome(s) • {parsed.filter((p) => p.skillLevel !== undefined).length} com nível • {parsed.filter((p) => p.isNew).length} novo(s) cadastro(s)
+              {parsed.length} nome(s) · {parsed.filter((p) => p.skillLevel !== undefined).length} com nível ·{' '}
+              {parsed.filter((p) => p.isNew).length} novo(s) cadastro(s)
             </span>
             <button disabled={busyAction || parsed.length === 0} onClick={handleImport} className={primaryBtn}>
               Marcar como confirmados
             </button>
           </div>
-        </div>
+        </section>
       )}
 
       {/* LISTA DOS CONFIRMADOS */}
-      <div className={`${cardClass} !rounded-2xl p-3.5 space-y-2`}>
-        <div className="text-xs font-extrabold text-lime-400">✅ Confirmados ({groups.confirmed.length})</div>
+      <section className="space-y-2.5">
+        <h2 className="font-display font-bold uppercase text-lg text-white leading-none">
+          Confirmados <span className="text-slate-500">({groups.confirmed.length})</span>
+        </h2>
         {groups.confirmed.length === 0 ? (
-          <div className="text-[11px] text-slate-500 py-2">Ninguém confirmou ainda.</div>
+          <div className="rounded-xl border border-dashed border-white/10 px-4 py-8 text-center text-sm text-slate-400">
+            Ninguém na lista ainda.
+            {canEdit && ' Use "Importar lista" no rodapé ou confirme os jogadores abaixo.'}
+          </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5">
+          <ul className="rounded-xl bg-[#131613] border border-white/[0.08] divide-y divide-white/[0.06] md:grid md:grid-cols-2 md:divide-y-0">
             {groups.confirmed.map((p) => (
               <PlayerRow key={p.id} p={p} status="confirmed" />
             ))}
-          </div>
+          </ul>
         )}
-      </div>
+      </section>
 
-      {/* ADICIONAR JOGADORES (admin): pendentes e ausentes ficam escondidos aqui */}
-      {isAdmin && !isFinished && groups.pending.length + groups.declined.length > 0 && (
-        <div className="space-y-2">
+      {/* ADICIONAR JOGADORES (admin): pendentes e ausentes ficam recolhidos */}
+      {canEdit && others.length > 0 && (
+        <section className="rounded-xl border border-white/[0.08] overflow-hidden">
           <button
             type="button"
             onClick={() => setAddOpen((v) => !v)}
-            className={`${ghostBtn} w-full justify-between`}
+            className="w-full flex items-center justify-between gap-2 px-3.5 py-3 text-sm font-semibold text-slate-200 hover:bg-white/[0.03] cursor-pointer"
             aria-expanded={addOpen}
           >
             <span className="inline-flex items-center gap-2">
-              <UserPlus className="w-4 h-4 text-lime-400" /> Adicionar jogador à lista ({groups.pending.length + groups.declined.length})
+              <UserPlus className="w-4 h-4 text-lime-400" /> Adicionar jogador à lista ({others.length})
             </span>
-            <ChevronDown className={`w-4 h-4 transition ${addOpen ? 'rotate-180' : ''}`} />
+            <ChevronDown className={`w-4 h-4 text-slate-400 transition ${addOpen ? 'rotate-180' : ''}`} />
           </button>
           {addOpen && (
-            <div className={`${cardClass} !rounded-2xl p-3.5 grid grid-cols-1 md:grid-cols-2 gap-1.5 animate-fade-in`}>
-              {[...groups.pending.map((p) => ({ p, st: 'pending' as const })), ...groups.declined.map((p) => ({ p, st: 'declined' as const }))].map(
-                ({ p, st }) => (
-                  <PlayerRow key={p.id} p={p} status={st} />
-                )
-              )}
-            </div>
+            <ul className="border-t border-white/[0.06] divide-y divide-white/[0.06] animate-fade-in">
+              {others.map(({ p, st }) => (
+                <PlayerRow key={p.id} p={p} status={st} />
+              ))}
+            </ul>
           )}
-        </div>
+        </section>
       )}
 
-      {/* IR PARA OS TIMES */}
-      {onGoToTeams && (
-        <div className="space-y-1.5">
-          <button
-            type="button"
-            onClick={onGoToTeams}
-            disabled={groups.confirmed.length < 2}
-            className={`${primaryBtn} w-full !py-3.5 !text-sm`}
-          >
-            Presença confirmada — ir para os times
-            <ArrowRight className="w-4 h-4" />
-          </button>
-          <p className="text-center text-[11px] text-slate-500">
-            {groups.confirmed.length < 2
-              ? 'São necessários pelo menos 2 confirmados para montar os times.'
-              : `${groups.confirmed.length} confirmados${groups.pending.length ? ` • ${groups.pending.length} ainda sem resposta` : ''}`}
-          </p>
+      {/* AÇÕES DO ADMIN: fixas no rodapé */}
+      {canEdit && (
+        <div className="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] lg:bottom-4 z-10">
+          <div className="flex gap-2 p-2 rounded-xl bg-[#0E110E]/95 border border-white/10 shadow-[0_8px_24px_-8px_rgba(0,0,0,0.8)] backdrop-blur">
+            <button
+              onClick={() => {
+                setImportOpen((v) => !v);
+                if (!importOpen) window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className={`inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg border text-sm font-semibold transition cursor-pointer ${
+                importOpen ? 'border-lime-400 text-lime-300' : 'border-white/15 text-slate-200 hover:bg-white/[0.06]'
+              }`}
+            >
+              <ClipboardPaste className="w-4 h-4" /> Importar lista
+            </button>
+            {onGoToTeams && (
+              <button
+                onClick={onGoToTeams}
+                disabled={groups.confirmed.length < 2}
+                title={groups.confirmed.length < 2 ? 'São necessários pelo menos 2 confirmados' : undefined}
+                className="flex-1 inline-flex items-center justify-center gap-2 py-3 rounded-lg bg-lime-400 hover:bg-lime-300 text-slate-950 text-sm font-bold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Ir para os times <ArrowRight className="w-4 h-4" />
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>

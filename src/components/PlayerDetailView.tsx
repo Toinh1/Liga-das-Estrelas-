@@ -1,23 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import {
-  ArrowLeft,
-  Award,
-  Edit3,
-  Flame,
-  Footprints,
-  Gauge,
-  GitCompareArrows,
-  Handshake,
-  HandHelping,
-  Percent,
-  Power,
-  Shield,
-  ThumbsDown,
-  Trash2,
-  Trophy,
-  UserCheck,
-  Swords,
-} from 'lucide-react';
+import { ArrowLeft, Award, Edit3, Flame, Footprints, Gauge, GitCompareArrows, HandHelping, Handshake, Percent, Power, Shield, Star, Swords, ThumbsDown, Trash2, Trophy, UserCheck } from 'lucide-react';
 import { useBaba } from '../context/BabaContext';
 import { babaService } from '../services/babaService';
 import type { Player } from '../types/domain';
@@ -178,7 +160,7 @@ export const PlayerDetailView: React.FC<{
       {/* NÚMEROS */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
         {tiles.map((t) => (
-          <div key={t.label} className="p-3.5 rounded-2xl bg-[#161616] border border-white/[0.07] flex sm:flex-col items-center sm:items-start gap-3">
+          <div key={t.label} className="p-3.5 rounded-2xl bg-[#131613] border border-white/[0.07] flex sm:flex-col items-center sm:items-start gap-3">
             <IconTile icon={t.icon} tone={t.tone} />
             <div>
               <div className="font-display font-extrabold text-lg text-white leading-none">{t.value}</div>
@@ -212,7 +194,7 @@ export const PlayerDetailView: React.FC<{
       {/* HISTÓRICO (CARROSSEL) */}
       <section className="space-y-2.5">
         <div className="flex items-center justify-between px-1">
-          <h2 className="text-sm font-bold text-white">Histórico de peladas</h2>
+          <h2 className="text-base font-bold uppercase tracking-wide text-white">Histórico de peladas</h2>
           <span className="text-[11px] text-slate-500">{st?.history.length ?? 0} no total</span>
         </div>
         {!st || st.history.length === 0 ? (
@@ -228,7 +210,7 @@ export const PlayerDetailView: React.FC<{
                     setSelectedPeladaId(h.peladaId);
                     setActiveSection('hoje');
                   }}
-                  className="snap-start shrink-0 w-[150px] p-3 rounded-2xl bg-[#161616] border border-white/[0.07] text-left space-y-2.5 hover:border-lime-400/30 transition cursor-pointer"
+                  className="snap-start shrink-0 w-[150px] p-3 rounded-2xl bg-[#131613] border border-white/[0.07] text-left space-y-2.5 hover:border-lime-400/30 transition cursor-pointer"
                 >
                   <div className="flex items-center justify-between text-[10px] text-slate-500">
                     <span>{shortDay(h.date)}</span>
@@ -257,8 +239,14 @@ export const PlayerDetailView: React.FC<{
                     <span className="text-sky-400 font-bold">{h.assists} A</span>
                     <span className="ml-auto">
                       {h.awards.map((a) => (
-                        <span key={a} title={AWARD_LABEL[a]}>
-                          {a === 'best_player' ? '⭐' : a === 'best_goalkeeper' ? '🧤' : '🔥'}
+                        <span key={a} title={AWARD_LABEL[a]} className="inline-flex">
+                          {a === 'best_player' ? (
+                            <Star className="w-3.5 h-3.5 text-yellow-300" />
+                          ) : a === 'best_goalkeeper' ? (
+                            <Shield className="w-3.5 h-3.5 text-sky-300" />
+                          ) : (
+                            <Flame className="w-3.5 h-3.5 text-lime-400" />
+                          )}
                         </span>
                       ))}
                     </span>
@@ -272,11 +260,11 @@ export const PlayerDetailView: React.FC<{
 
       {/* EVOLUÇÃO */}
       <div className={`${cardClass} !rounded-2xl p-4 space-y-3`}>
-        <h2 className="text-sm font-bold text-white">Evolução</h2>
+        <h2 className="text-base font-bold uppercase tracking-wide text-white">Evolução</h2>
         <StackedBarChart
           data={evolution}
           series={[
-            { key: 'goals', label: 'Gols', color: '#3FE21A' },
+            { key: 'goals', label: 'Gols', color: '#52CC33' },
             { key: 'assists', label: 'Assistências', color: '#38BDF8' },
             { key: 'wins', label: 'Vitórias', color: '#52525B' },
           ]}

@@ -75,7 +75,7 @@ export const CreatePeladaModal: React.FC = () => {
         participatingLineIds: selectedLineIds,
         confirmedPlayerIds: confirmedIds,
       });
-    }, 'Pelada criada! Os jogadores já podem confirmar presença ⚽');
+    }, 'Pelada criada! Os jogadores já podem confirmar presença');
 
     if (res) {
       setSelectedPeladaId(res.value);
@@ -85,7 +85,7 @@ export const CreatePeladaModal: React.FC = () => {
   };
 
   return (
-    <Modal title="⚽ Nova pelada" onClose={() => setOpenCreatePeladaModal(false)}>
+    <Modal title="Nova pelada" onClose={() => setOpenCreatePeladaModal(false)}>
       <form onSubmit={handleSubmit} className="p-4 sm:p-5 space-y-4">
         <div className="grid grid-cols-2 gap-3">
           <div className="col-span-2 sm:col-span-1">
@@ -119,7 +119,7 @@ export const CreatePeladaModal: React.FC = () => {
                   type="button"
                   onClick={() => toggleLine(line.id)}
                   className={`p-2.5 rounded-xl border flex items-center justify-between transition cursor-pointer ${
-                    active ? 'border-lime-400 bg-lime-400/10' : 'border-white/10 bg-[#1F1F1F] opacity-55'
+                    active ? 'border-lime-400 bg-lime-400/10' : 'border-white/10 bg-[#1B1F1B] opacity-55'
                   }`}
                 >
                   <LineBadge line={line} size="sm" />

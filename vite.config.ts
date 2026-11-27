@@ -29,6 +29,8 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true,
+    // Pastas escritas por ferramentas externas não devem recarregar a página
+    watch: { ignored: ['**/.omc/**', '**/.playwright-mcp/**'] },
   },
   build: {
     rollupOptions: {

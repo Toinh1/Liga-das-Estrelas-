@@ -32,7 +32,7 @@ export const GoalsPanel: React.FC<{ pelada: Pelada }> = ({ pelada }) => {
       <div className="px-5 py-3.5 border-b border-white/[0.06] flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Flame className="w-4 h-4 text-lime-400" />
-          <h2 className="text-sm font-bold text-white">Gols e assistências da pelada</h2>
+          <h2 className="text-base font-bold uppercase tracking-wide text-white">Gols e assistências da pelada</h2>
         </div>
         <span className="text-[11px] text-slate-500 text-right">Atualizado a cada jogo registrado</span>
       </div>

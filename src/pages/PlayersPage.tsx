@@ -3,16 +3,7 @@ import { ListChecks, Plus, Search, SlidersHorizontal, Users } from 'lucide-react
 import { PlayerDetailView } from '../components/PlayerDetailView';
 import { KeepOnlyPlayersModal } from '../components/KeepOnlyPlayersModal';
 import { PlayerFormModal } from '../components/PlayerFormModal';
-import {
-  ChipGroup,
-  EmptyState,
-  PageHeader,
-  PlayerAvatar,
-  SkillMeter,
-  cardClass,
-  ghostBtn,
-  primaryBtn,
-} from '../components/ui';
+import { ChipGroup, EmptyState, GkTag, PageHeader, PlayerAvatar, SkillMeter, cardClass, ghostBtn, primaryBtn } from '../components/ui';
 import { useBaba } from '../context/BabaContext';
 import { babaService } from '../services/babaService';
 
@@ -82,7 +73,7 @@ export const PlayersPage: React.FC = () => {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar por nome ou apelido"
-            className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-[#161616] border border-white/10 text-sm text-white focus:outline-none focus:border-lime-400"
+            className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-[#131613] border border-white/10 text-sm text-white focus:outline-none focus:border-lime-400"
           />
         </div>
         <ChipGroup
@@ -128,7 +119,7 @@ export const PlayersPage: React.FC = () => {
                   <div className="min-w-0">
                     <div className="text-sm font-bold text-white truncate">
                       {p.nickname || p.name}
-                      {p.position === 'Goleiro' && <span className="ml-1">🧤</span>}
+                      {p.position === 'Goleiro' && <span className="ml-1 inline-flex align-middle"><GkTag /></span>}
                     </div>
                     <div className="text-[11px] text-slate-500 truncate">
                       {p.position} • {st?.matchesPlayed ?? 0} jogos • {st?.goals ?? 0} gols

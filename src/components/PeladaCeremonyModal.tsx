@@ -79,7 +79,7 @@ export const PeladaCeremonyModal: React.FC = () => {
     ].join('\n');
 
     navigator.clipboard.writeText(summaryText);
-    pushToast('Resumo copiado! 📋', 'Pronto para colar no grupo da pelada.');
+    pushToast('Resumo copiado!', 'Pronto para colar no grupo da pelada.');
   };
 
   return (
@@ -94,7 +94,7 @@ export const PeladaCeremonyModal: React.FC = () => {
               style={{
                 left: `${(i * 7 + 5) % 96}%`,
                 top: '-12px',
-                backgroundColor: i % 3 === 0 ? '#E9AE17' : i % 3 === 1 ? '#3FE21A' : '#38BDF8',
+                backgroundColor: i % 3 === 0 ? '#E9AE17' : i % 3 === 1 ? '#52CC33' : '#38BDF8',
                 animation: `confettiDrop ${2.6 + (i % 4) * 0.6}s linear infinite`,
                 animationDelay: `${(i % 5) * 0.35}s`,
               }}
@@ -130,7 +130,7 @@ export const PeladaCeremonyModal: React.FC = () => {
         <div className="relative z-10 p-5 sm:p-8 space-y-7 max-h-[85vh] overflow-y-auto">
           {/* Hero Campeão */}
           <div className="text-center space-y-3">
-            <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-yellow-400/15 border border-yellow-400/40 text-yellow-400 animate-trophy shadow-xl shadow-yellow-500/10">
+            <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-yellow-400/15 border border-yellow-400/40 text-yellow-400 animate-trophy">
               <Trophy className="w-11 h-11" />
             </div>
             <div>
@@ -191,7 +191,7 @@ export const PeladaCeremonyModal: React.FC = () => {
                 <Award className="w-5 h-5" />
               </div>
               <span className="text-[11px] font-extrabold uppercase tracking-wider text-yellow-400">
-                🏆 Melhor da Pelada
+                Melhor da Pelada
               </span>
               {bestPlayers.length > 0 ? (
                 <div className="mt-3 space-y-2">
@@ -223,7 +223,7 @@ export const PeladaCeremonyModal: React.FC = () => {
                 <Shield className="w-5 h-5" />
               </div>
               <span className="text-[11px] font-extrabold uppercase tracking-wider text-sky-400">
-                🧤 Melhor Goleiro
+                Melhor Goleiro
               </span>
               {bestKeepers.length > 0 ? (
                 <div className="mt-3 space-y-2">
@@ -255,7 +255,7 @@ export const PeladaCeremonyModal: React.FC = () => {
                 <Flame className="w-5 h-5" />
               </div>
               <span className="text-[11px] font-extrabold uppercase tracking-wider text-lime-400">
-                ⚽ Artilheiro da Rodada
+                Artilheiro da Rodada
               </span>
               {topScorers.length > 0 ? (
                 <div className="mt-3 space-y-2">
@@ -309,7 +309,7 @@ export const PeladaCeremonyModal: React.FC = () => {
 
           {/* Classificação Final das Linhas + Foto Oficial */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            <div className="rounded-2xl bg-[#161616] border border-white/10 overflow-hidden">
+            <div className="rounded-2xl bg-[#131613] border border-white/10 overflow-hidden">
               <div className="px-4 py-3 border-b border-white/10 flex items-center gap-2">
                 <Medal className="w-4 h-4 text-yellow-400" />
                 <h3 className="text-sm font-bold text-white">Classificação Final das Linhas</h3>
@@ -337,7 +337,7 @@ export const PeladaCeremonyModal: React.FC = () => {
                         }`}
                       >
                         <td className="py-2.5 px-3 font-bold">
-                          {idx === 0 ? '🏆' : `${idx + 1}º`}
+                          {idx === 0 ? <Trophy className="w-4 h-4 text-yellow-300" aria-label="Campeã" /> : `${idx + 1}º`}
                         </td>
                         <td className="py-2.5 px-2">
                           <LineBadge line={row} size="sm" />
@@ -360,7 +360,7 @@ export const PeladaCeremonyModal: React.FC = () => {
             </div>
 
             {/* Foto oficial da rodada */}
-            <div className="rounded-2xl bg-[#161616] border border-white/10 overflow-hidden flex flex-col">
+            <div className="rounded-2xl bg-[#131613] border border-white/10 overflow-hidden flex flex-col">
               <div className="px-4 py-3 border-b border-white/10 flex items-center gap-2">
                 <Camera className="w-4 h-4 text-lime-400" />
                 <h3 className="text-sm font-bold text-white">Foto Oficial da Rodada</h3>

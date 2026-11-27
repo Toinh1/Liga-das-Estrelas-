@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Award, Check, Flame, Lock, Play, Shield, Trophy, Vote } from 'lucide-react';
+import { Award, Check, Flame, Lock, Play, Shield, Star, Trophy, Vote } from 'lucide-react';
 import { useBaba } from '../context/BabaContext';
 import { babaService } from '../services/babaService';
 import type { VoteCategory } from '../types/domain';
@@ -52,7 +52,7 @@ export const VotingPage: React.FC = () => {
   return (
     <div className="space-y-5">
       {/* CABEÇALHO SIMPLES */}
-      <div className="p-4 sm:p-5 rounded-3xl bg-[#161616] border border-white/[0.08] flex flex-wrap items-center justify-between gap-3">
+      <div className="p-4 sm:p-5 rounded-3xl bg-[#131613] border border-white/[0.08] flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-lg sm:text-xl font-extrabold text-white">Votação</h1>
@@ -84,7 +84,7 @@ export const VotingPage: React.FC = () => {
                 onClick={() =>
                   runAction(
                     () => babaService.setVotingStatus(pelada.id, 'open'),
-                    'Votação aberta! 🗳️'
+                    'Votação aberta!'
                   )
                 }
                 className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-lime-400 hover:bg-lime-300 text-slate-950 font-extrabold text-xs cursor-pointer"
@@ -99,7 +99,7 @@ export const VotingPage: React.FC = () => {
                   if (window.confirm('Encerrar a votação e revelar os vencedores?')) {
                     runAction(
                       () => babaService.setVotingStatus(pelada.id, 'closed'),
-                      'Vencedores revelados! 🏆'
+                      'Vencedores revelados!'
                     );
                   }
                 }}
@@ -115,7 +115,7 @@ export const VotingPage: React.FC = () => {
 
       {/* ESTADO 1: AINDA NÃO INICIADA */}
       {!isOpen && !isRevealed && (
-        <div className="p-10 rounded-3xl bg-[#161616] border border-white/[0.08] text-center space-y-3">
+        <div className="p-10 rounded-3xl bg-[#131613] border border-white/[0.08] text-center space-y-3">
           <Vote className="w-9 h-9 text-slate-500 mx-auto" />
           <div className="text-base font-bold text-white">Votação ainda fechada</div>
           <p className="text-xs text-slate-400 max-w-xs mx-auto">
@@ -129,7 +129,7 @@ export const VotingPage: React.FC = () => {
       {isRevealed && summary && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
           {/* Melhor Jogador */}
-          <div className="p-5 rounded-3xl bg-[#161616] border border-yellow-400/30 flex flex-col items-center text-center space-y-2.5">
+          <div className="p-5 rounded-3xl bg-[#131613] border border-yellow-400/30 flex flex-col items-center text-center space-y-2.5">
             <span className="text-xs font-extrabold text-yellow-400 flex items-center gap-1">
               <Award className="w-4 h-4" /> Melhor da Pelada
             </span>
@@ -163,7 +163,7 @@ export const VotingPage: React.FC = () => {
           </div>
 
           {/* Melhor Goleiro */}
-          <div className="p-5 rounded-3xl bg-[#161616] border border-sky-400/30 flex flex-col items-center text-center space-y-2.5">
+          <div className="p-5 rounded-3xl bg-[#131613] border border-sky-400/30 flex flex-col items-center text-center space-y-2.5">
             <span className="text-xs font-extrabold text-sky-400 flex items-center gap-1">
               <Shield className="w-4 h-4" /> Melhor Goleiro
             </span>
@@ -197,7 +197,7 @@ export const VotingPage: React.FC = () => {
           </div>
 
           {/* Artilheiro */}
-          <div className="p-5 rounded-3xl bg-[#161616] border border-lime-400/30 flex flex-col items-center text-center space-y-2.5">
+          <div className="p-5 rounded-3xl bg-[#131613] border border-lime-400/30 flex flex-col items-center text-center space-y-2.5">
             <span className="text-xs font-extrabold text-lime-400 flex items-center gap-1">
               <Flame className="w-4 h-4" /> Artilheiro
             </span>
@@ -235,7 +235,7 @@ export const VotingPage: React.FC = () => {
       {/* ESTADO 3: VOTAÇÃO ABERTA */}
       {isOpen && (
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-2 p-1.5 rounded-2xl bg-[#161616] border border-white/[0.07]">
+          <div className="grid grid-cols-2 gap-2 p-1.5 rounded-2xl bg-[#131613] border border-white/[0.07]">
             <button
               onClick={() => setCategory('best_player')}
               className={`py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition cursor-pointer ${
@@ -244,7 +244,7 @@ export const VotingPage: React.FC = () => {
                   : 'text-slate-300 hover:text-white'
               }`}
             >
-              <span>🏆 Melhor Jogador</span>
+              <Star className="w-4 h-4" /><span>Melhor Jogador</span>
               {myVoteBp && <Check className="w-4 h-4" />}
             </button>
             <button
@@ -255,7 +255,7 @@ export const VotingPage: React.FC = () => {
                   : 'text-slate-300 hover:text-white'
               }`}
             >
-              <span>🧤 Melhor Goleiro</span>
+              <Shield className="w-4 h-4" /><span>Melhor Goleiro</span>
               {myVoteGk && <Check className="w-4 h-4" />}
             </button>
           </div>
@@ -266,7 +266,7 @@ export const VotingPage: React.FC = () => {
             </div>
           )}
 
-          <div className="rounded-3xl bg-[#161616] border border-white/[0.08] divide-y divide-white/[0.05] overflow-hidden">
+          <div className="rounded-3xl bg-[#131613] border border-white/[0.08] divide-y divide-white/[0.05] overflow-hidden">
             {candidates.map((cand) => {
               const isSelf = cand.id === user.playerId;
               const isMyChoice = currentMyVote === cand.id;
@@ -290,7 +290,7 @@ export const VotingPage: React.FC = () => {
                         {cand.nickname || cand.name}
                       </div>
                       <div className="text-[11px] text-slate-400">
-                        {cand.position === 'Goleiro' ? '🧤 Goleiro' : cand.position}
+                        {cand.position}
                       </div>
                     </div>
                   </div>
@@ -307,7 +307,7 @@ export const VotingPage: React.FC = () => {
                       onClick={() =>
                         runAction(
                           () => babaService.castVote(pelada.id, category, cand.id),
-                          'Voto registrado! 🔒'
+                          'Voto registrado!'
                         )
                       }
                       className="px-4 py-1.5 rounded-xl bg-white/10 hover:bg-lime-400 hover:text-slate-950 text-xs font-extrabold text-white transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed shrink-0"

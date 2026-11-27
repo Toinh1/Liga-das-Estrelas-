@@ -129,7 +129,7 @@ export const MatchEditorModal: React.FC<{
     };
     const res = await runAction(
       () => (match ? babaService.updateMatch(match.id, input) : babaService.createMatch(idRef.current, input)),
-      match ? 'Resultado corrigido!' : 'Jogo registrado! ⚽'
+      match ? 'Resultado corrigido!' : 'Jogo registrado!'
     );
     if (res) onClose();
   };
@@ -161,11 +161,11 @@ export const MatchEditorModal: React.FC<{
           </span>
         </div>
         {goals === 0 ? null : roster.length === 0 ? (
-          <div className="text-xs text-slate-500 px-3 py-2 rounded-xl bg-[#1F1F1F]">
+          <div className="text-xs text-slate-500 px-3 py-2 rounded-xl bg-[#1B1F1B]">
             Esta linha não tem jogadores escalados. Defina os times para registrar autores.
           </div>
         ) : (
-          <div className="rounded-2xl bg-[#1F1F1F] border border-white/5 divide-y divide-white/5">
+          <div className="rounded-2xl bg-[#1B1F1B] border border-white/5 divide-y divide-white/5">
             <div className="grid grid-cols-[1fr_auto_auto] gap-3 px-3 py-1.5 text-[10px] font-bold text-slate-500">
               <span>Jogador</span>
               <span className="w-[86px] text-center">Gols</span>
@@ -212,7 +212,7 @@ export const MatchEditorModal: React.FC<{
             const goals = side === 'home' ? homeGoals : awayGoals;
             const setGoals = side === 'home' ? setHomeGoals : setAwayGoals;
             const block = (
-              <div key={side} className="p-2.5 rounded-2xl bg-[#1F1F1F] border border-white/10 space-y-2">
+              <div key={side} className="p-2.5 rounded-2xl bg-[#1B1F1B] border border-white/10 space-y-2">
                 <select
                   value={lineId}
                   onChange={(e) => changeSideLine(side, e.target.value)}
@@ -220,7 +220,7 @@ export const MatchEditorModal: React.FC<{
                   aria-label={side === 'home' ? 'Linha mandante' : 'Linha adversária'}
                 >
                   {lines.map((l) => (
-                    <option key={l.id} value={l.id} className="bg-[#161616]">
+                    <option key={l.id} value={l.id} className="bg-[#131613]">
                       {l.name}
                     </option>
                   ))}
@@ -266,7 +266,7 @@ export const MatchEditorModal: React.FC<{
               <Side side="away" lineId={awayLineId} goals={awayGoals} scorers={awayScorers} setScorers={setAwayScorers} assists={awayAssists} setAssists={setAwayAssists} />
             </div>
 
-            <div className="p-3 rounded-2xl bg-[#1F1F1F] border border-white/5 text-center text-sm">
+            <div className="p-3 rounded-2xl bg-[#1B1F1B] border border-white/5 text-center text-sm">
               <span className="font-bold text-white">{home?.name}</span>{' '}
               <span className="font-display font-extrabold text-lime-400">
                 {homeGoals} × {awayGoals}

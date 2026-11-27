@@ -121,7 +121,7 @@ export const StackedBarChart: React.FC<{
 export const HorizontalBars: React.FC<{
   rows: { id: string; label: React.ReactNode; value: number; suffix?: string }[];
   color?: string;
-}> = ({ rows, color = '#3FE21A' }) => {
+}> = ({ rows, color = '#52CC33' }) => {
   const max = Math.max(1, ...rows.map((r) => r.value));
   if (rows.length === 0) return <div className="py-6 text-center text-xs text-slate-500">Sem dados.</div>;
   return (

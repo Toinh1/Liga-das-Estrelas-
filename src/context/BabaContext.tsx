@@ -189,7 +189,7 @@ export const BabaProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const u = await babaService.login(email, password);
         await startSession(u);
-        pushToast(`Bem-vindo, ${u.name.split(' ')[0]}! ⚽`);
+        pushToast(`Bem-vindo, ${u.name.split(' ')[0]}!`);
       } catch (err: any) {
         pushToast('Falha no login', err?.message || 'Verifique suas credenciais.', 'error');
         throw err;
@@ -212,7 +212,7 @@ export const BabaProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const u = await babaService.register(input);
         await startSession(u);
-        pushToast('Conta criada com sucesso! 🎉', 'Seu perfil de atleta já está ativo.');
+        pushToast('Conta criada com sucesso!', 'Seu perfil de atleta já está ativo.');
       } catch (err: any) {
         pushToast('Erro no cadastro', err?.message || 'Tente novamente.', 'error');
         throw err;

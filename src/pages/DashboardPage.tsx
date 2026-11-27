@@ -1,30 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import {
-  Activity,
-  AlertTriangle,
-  ArrowRight,
-  CalendarClock,
-  Check,
-  ChevronDown,
-  Clock,
-  Crown,
-  Flame,
-  Swords,
-  Trophy,
-  Users,
-} from 'lucide-react';
+import { AlertTriangle, ArrowRight, Check, ChevronDown, ChevronRight, Clock, Crown, Flame, Trophy, X } from 'lucide-react';
 import { HorizontalBars, StackedBarChart } from '../components/charts';
-import {
-  IconTile,
-  InfoChip,
-  PlayerAvatar,
-  RingProgress,
-  SessionCard,
-  cardClass,
-  dayPeriod,
-  playerLabel,
-  type TileTone,
-} from '../components/ui';
+import { PlayerAvatar, playerLabel } from '../components/ui';
 import { useBaba } from '../context/BabaContext';
 import { getPeladaProgress, type PeladaProgress } from '../components/pelada/PeladaSteps';
 import type { Pelada } from '../types/domain';
@@ -39,19 +16,13 @@ import {
   type PeriodFilter,
 } from '../utils/statsEngine';
 
-const STATUS_VIEW: Record<Pelada['status'], { icon: React.ElementType; tone: TileTone }> = {
-  open: { icon: CalendarClock, tone: 'orange' },
-  in_progress: { icon: Activity, tone: 'emerald' },
-  finished: { icon: Swords, tone: 'lime' },
-};
-
-/** Texto do status em linguagem simples, de acordo com a etapa da pelada. */
+/** Status em linguagem simples, de acordo com a etapa da pelada. */
 function statusText(p: Pelada, progress: PeladaProgress): { text: string; cls: string } {
-  if (p.status === 'finished') return { text: 'Encerrada', cls: 'bg-white/[0.06] text-slate-300' };
-  if (progress.matchesDone) return { text: 'Em jogo', cls: 'bg-emerald-500/15 text-emerald-300' };
-  if (progress.teamsDone) return { text: 'Times prontos', cls: 'bg-sky-500/15 text-sky-300' };
-  if (progress.presenceDone) return { text: 'Sorteando times', cls: 'bg-yellow-400/15 text-yellow-300' };
-  return { text: 'Confirmando presença', cls: 'bg-orange-500/15 text-orange-300' };
+  if (p.status === 'finished') return { text: 'Encerrada', cls: 'text-slate-400' };
+  if (progress.matchesDone) return { text: 'Em jogo', cls: 'text-emerald-300' };
+  if (progress.teamsDone) return { text: 'Times prontos', cls: 'text-sky-300' };
+  if (progress.presenceDone) return { text: 'Sorteando', cls: 'text-yellow-300' };
+  return { text: 'Confirmando', cls: 'text-orange-300' };
 }
 
 const STEP_CTA: Record<string, string> = {
@@ -60,8 +31,16 @@ const STEP_CTA: Record<string, string> = {
   jogos: 'Registrar os jogos',
 };
 
-const shortDate = (iso: string) =>
-  new Date(`${iso}T12:00:00`).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' });
+/** "2026-12-02" → { weekday: 'QUA', day: '02', month: 'DEZ' } */
+const dateParts = (iso: string) => {
+  const d = new Date(`${iso}T12:00:00`);
+  const clean = (x: string) => x.replace('.', '').slice(0, 3).toUpperCase();
+  return {
+    weekday: clean(d.toLocaleDateString('pt-BR', { weekday: 'short' })),
+    day: iso.slice(8, 10),
+    month: clean(d.toLocaleDateString('pt-BR', { month: 'short' })),
+  };
+};
 
 export const DashboardPage: React.FC = () => {
   const {
@@ -143,7 +122,6 @@ export const DashboardPage: React.FC = () => {
     : null;
   const nextProgress = nextPelada ? getPeladaProgress(nextPelada, snapshot.matches) : null;
   const openPeladas = snapshot.peladas.filter((p) => p.status !== 'finished');
-  const confirmedPct = nextPelada && activePlayers ? (nextPelada.confirmedPlayerIds.length / activePlayers) * 100 : 0;
 
   // Feed agrupado por mês
   const feed = (month === 'all' ? snapshot.peladas : snapshot.peladas.filter((p) => p.date.startsWith(month)));
@@ -163,23 +141,23 @@ export const DashboardPage: React.FC = () => {
   const highlights = [
     {
       icon: Flame,
-      tone: 'lime' as TileTone,
+      iconCls: 'text-lime-400',
       title: 'Artilheiro',
       ids: view.topScorers[0] ? view.topScorers.filter((s) => s.goals === view.topScorers[0].goals).map((s) => s.playerId) : [],
-      value: `${view.topScorers[0]?.goals ?? 0} gols`,
+      value: `${view.topScorers[0]?.goals ?? 0}`,
       sub: view.scopeLabel,
     },
     {
       icon: Trophy,
-      tone: 'emerald' as TileTone,
+      iconCls: 'text-emerald-400',
       title: 'Mais vitórias',
       ids: view.topWinners[0] ? view.topWinners.filter((s) => s.matchWins === view.topWinners[0].matchWins).map((s) => s.playerId) : [],
-      value: `${view.topWinners[0]?.matchWins ?? 0} vitórias`,
+      value: `${view.topWinners[0]?.matchWins ?? 0}`,
       sub: view.scopeLabel,
     },
     {
       icon: Crown,
-      tone: 'yellow' as TileTone,
+      iconCls: 'text-yellow-300',
       title: 'Craque do mês',
       ids: view.craque?.winnerPlayerIds ?? [],
       value: `${view.craque?.value ?? 0} pts`,
@@ -188,235 +166,273 @@ export const DashboardPage: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-5">
-      {/* CABEÇALHO: mês + presença */}
-      <div className="flex items-center justify-between gap-3">
-        <label className="relative inline-flex items-center gap-1.5 cursor-pointer">
-          <span className="font-display font-extrabold text-xl sm:text-2xl text-white">
-            {month === 'all' ? 'Todas as peladas' : formatMonthKey(month).replace('/', ' ')}
-          </span>
-          <ChevronDown className="w-5 h-5 text-slate-300" />
-          <select
-            value={month}
-            onChange={(e) => setMonth(e.target.value)}
-            className="absolute inset-0 opacity-0 cursor-pointer"
-            aria-label="Escolher mês"
-          >
-            <option value="all">Todas as peladas</option>
-            {months.map((m) => (
-              <option key={m} value={m}>
-                {formatMonthKey(m)}
-              </option>
-            ))}
-          </select>
-        </label>
-
-      </div>
-
+    <div className="space-y-7">
       {/* AVISO: VÁRIAS PELADAS ABERTAS */}
       {isAdmin && openPeladas.length > 1 && (
-        <div className="flex gap-3 px-4 py-3 rounded-2xl bg-amber-500/10 border border-amber-400/30">
+        <div className="flex gap-3 px-4 py-3 rounded-xl bg-amber-500/[0.07] border border-amber-400/25">
           <AlertTriangle className="w-4 h-4 text-amber-300 shrink-0 mt-0.5" />
-          <p className="text-[11px] sm:text-xs text-amber-100/90 leading-relaxed">
-            Existem <strong>{openPeladas.length} peladas em aberto</strong>. Para não confundir a galera, abra as que não vão
-            acontecer e toque na lixeira para excluir, ou encerre as que já terminaram.
+          <p className="text-xs text-amber-100/90 leading-relaxed">
+            Existem <strong>{openPeladas.length} peladas em aberto</strong>. Abra as que não vão acontecer e toque na
+            lixeira para excluir, ou encerre as que já terminaram.
           </p>
         </div>
       )}
 
-      {/* PRÓXIMA PELADA: o que fazer agora */}
-      {nextPelada && nextProgress && (
-        <div className="p-4 rounded-3xl bg-gradient-to-br from-lime-400/[0.12] to-transparent border border-lime-400/30 space-y-3.5">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="text-[10px] font-black uppercase tracking-wider text-lime-400">Próxima pelada</div>
-              <div className="font-display font-extrabold text-lg text-white leading-tight mt-0.5">{nextPelada.title}</div>
-              <div className="text-[11px] text-slate-400 mt-0.5">
-                {shortDate(nextPelada.date)} às {nextPelada.time}
-                {nextPelada.location ? ` • ${nextPelada.location}` : ''}
+      {/* PRÓXIMA PELADA */}
+      {nextPelada && nextProgress && (() => {
+        const d = dateParts(nextPelada.date);
+        const steps = [
+          { id: 'presenca', label: 'Presença', done: nextProgress.presenceDone },
+          { id: 'times', label: 'Times', done: nextProgress.teamsDone },
+          { id: 'jogos', label: 'Jogos', done: nextProgress.matchesDone },
+          { id: 'encerrar', label: 'Encerrar', done: false },
+        ];
+        const currentId = nextProgress.matchesDone ? 'encerrar' : nextProgress.current;
+        return (
+          <section aria-label="Próxima pelada" className="rounded-xl bg-[#131613] border border-white/[0.09] overflow-hidden">
+            <div className="flex">
+              {/* Data no estilo de ingresso */}
+              <div className="w-[4.5rem] shrink-0 flex flex-col items-center justify-center py-4 bg-lime-400 text-slate-950">
+                <span className="text-[11px] font-bold uppercase tracking-wider">{d.weekday}</span>
+                <span className="font-display font-bold text-4xl leading-none mt-0.5">{d.day}</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider mt-0.5">{d.month}</span>
+              </div>
+              <div className="flex-1 min-w-0 px-4 py-3.5 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold text-lime-400">Próxima pelada</p>
+                  <h2 className="font-display font-bold uppercase text-2xl text-white leading-tight truncate">{nextPelada.title}</h2>
+                  <p className="text-xs text-slate-400 mt-0.5 truncate">
+                    {nextPelada.time}
+                    {nextPelada.location ? ` · ${nextPelada.location}` : ''}
+                  </p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="font-display font-bold text-2xl leading-none text-white">
+                    {nextPelada.confirmedPlayerIds.length}
+                    <span className="text-slate-500 text-lg">/{activePlayers}</span>
+                  </p>
+                  <p className="text-[11px] text-slate-400 mt-1">confirmados</p>
+                </div>
               </div>
             </div>
-            <RingProgress value={confirmedPct} />
-          </div>
 
-          {/* Etapas resumidas */}
-          <div className="grid grid-cols-4 gap-1">
-            {(
-              [
-                ['Presença', nextProgress.presenceDone],
-                ['Times', nextProgress.teamsDone],
-                ['Jogos', nextProgress.matchesDone],
-                ['Encerrar', false],
-              ] as const
-            ).map(([label, done], i) => (
-              <div key={label} className="flex flex-col items-center gap-1">
-                <div className={`h-1.5 w-full rounded-full ${done ? 'bg-lime-400' : 'bg-white/10'}`} />
-                <span className={`text-[10px] font-bold inline-flex items-center gap-0.5 ${done ? 'text-lime-400' : 'text-slate-500'}`}>
-                  {done ? <Check className="w-3 h-3" strokeWidth={3} /> : `${i + 1}.`} {label}
-                </span>
-              </div>
-            ))}
-          </div>
+            {/* Etapas */}
+            <ol className="grid grid-cols-4 border-t border-white/[0.07]">
+              {steps.map((s, i) => {
+                const isCurrent = s.id === currentId;
+                return (
+                  <li
+                    key={s.id}
+                    className={`flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-semibold ${
+                      i > 0 ? 'border-l border-white/[0.07]' : ''
+                    } ${s.done ? 'text-lime-400' : isCurrent ? 'text-white bg-white/[0.04]' : 'text-slate-500'}`}
+                    aria-current={isCurrent ? 'step' : undefined}
+                  >
+                    {s.done ? <Check className="w-3.5 h-3.5" strokeWidth={3} /> : <span className="tabular-nums">{i + 1}</span>}
+                    {s.label}
+                  </li>
+                );
+              })}
+            </ol>
 
-          <div className="text-xs text-slate-300">
-            <strong className="text-white">{nextPelada.confirmedPlayerIds.length}</strong> confirmados de {activePlayers} jogadores
-          </div>
-
-          {isAdmin ? (
-            <button
-              onClick={() => openPelada(nextPelada.id)}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-lime-400 hover:bg-lime-300 text-slate-950 text-sm font-extrabold cursor-pointer transition"
-            >
-              {nextProgress.matchesDone ? 'Continuar a pelada' : STEP_CTA[nextProgress.current]}
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          ) : (
-            <div className="flex items-center justify-between gap-2">
-              <span
-                className={`text-xs font-bold ${
-                  myStatus === 'confirmed' ? 'text-lime-400' : myStatus === 'declined' ? 'text-rose-400' : 'text-slate-400'
-                }`}
-              >
-                {myStatus === 'confirmed'
-                  ? '✓ Você está na lista'
-                  : myStatus === 'declined'
-                  ? '✕ Você está fora desta pelada'
-                  : 'O admin ainda não te colocou na lista'}
-              </span>
-              <button onClick={() => openPelada(nextPelada.id)} className="text-xs font-bold text-white underline cursor-pointer">
-                Ver pelada
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* FEED DE PELADAS */}
-      <div className="px-1 -mb-1">
-        <h2 className="text-sm font-extrabold text-white">Peladas</h2>
-        <p className="text-[11px] text-slate-500">Toque em uma pelada para ver presença, times, jogos e gols.</p>
-      </div>
-      {groups.length === 0 ? (
-        <div className={`${cardClass} p-10 text-center text-sm text-slate-400`}>
-          Nenhuma pelada {month === 'all' ? 'criada ainda' : 'neste mês'}.
-          {isAdmin && ' Toque no botão verde + para criar.'}
-        </div>
-      ) : (
-        groups.map((g, gi) => (
-          <section key={g.key} className="space-y-2.5">
-            {(month === 'all' || gi > 0) && (
-              <h2 className="text-xs font-bold text-slate-500 px-1 pt-1">{formatMonthKey(g.key).replace('/', ' ')}</h2>
-            )}
-            {g.items.map((p) => {
-              const sv = STATUS_VIEW[p.status];
-              const st = statusText(p, getPeladaProgress(p, snapshot.matches));
-              const matchCount = snapshot.matches.filter((m) => m.peladaId === p.id).length;
-              const champ = p.championLineId ? lineMap.get(p.championLineId) : undefined;
-              return (
-                <SessionCard
-                  key={p.id}
-                  icon={sv.icon}
-                  tone={sv.tone}
-                  title={p.title}
-                  subtitle={`${shortDate(p.date)} • ${dayPeriod(p.time)}${p.location ? ` • ${p.location}` : ''}`}
-                  right={
-                    champ ? (
-                      <span
-                        className="px-2 py-1 rounded-lg text-[10px] font-black border border-white/10 shrink-0"
-                        style={{ backgroundColor: champ.colorHex, color: champ.textColorHex }}
-                        title={`${champ.name} campeã`}
-                      >
-                        🏆 {champ.name.replace(/^Linha\s+/i, '')}
-                      </span>
+            <div className="px-4 py-3.5 border-t border-white/[0.07]">
+              {isAdmin ? (
+                <button
+                  onClick={() => openPelada(nextPelada.id)}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-lg bg-lime-400 hover:bg-lime-300 text-slate-950 text-sm font-bold cursor-pointer transition"
+                >
+                  {nextProgress.matchesDone ? 'Continuar a pelada' : STEP_CTA[nextProgress.current]}
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              ) : (
+                <div className="flex items-center justify-between gap-2">
+                  <span
+                    className={`inline-flex items-center gap-1.5 text-xs font-semibold ${
+                      myStatus === 'confirmed' ? 'text-lime-400' : myStatus === 'declined' ? 'text-rose-400' : 'text-slate-400'
+                    }`}
+                  >
+                    {myStatus === 'confirmed' ? (
+                      <Check className="w-3.5 h-3.5" strokeWidth={3} />
+                    ) : myStatus === 'declined' ? (
+                      <X className="w-3.5 h-3.5" strokeWidth={3} />
                     ) : (
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${st.cls}`}>{st.text}</span>
-                    )
-                  }
-                  chips={
-                    <>
-                      <InfoChip icon={Clock}>{p.time}</InfoChip>
-                      <InfoChip icon={Users}>
-                        {p.status === 'open' ? `${p.confirmedPlayerIds.length} confirmados` : `${p.presentPlayerIds.length || p.confirmedPlayerIds.length} atletas`}
-                      </InfoChip>
-                      {matchCount > 0 && <InfoChip icon={Swords}>{matchCount} jogos</InfoChip>}
-                    </>
-                  }
-                  onClick={() => openPelada(p.id)}
-                />
-              );
-            })}
-          </section>
-        ))
-      )}
-
-      {/* RESUMO DO BABA (estilo "My Club") */}
-      <section className="space-y-2.5">
-        <h2 className="text-xs font-bold text-slate-500 px-1">Resumo do baba</h2>
-        <div className="grid grid-cols-2 gap-2.5">
-          {[
-            { icon: Users, tone: 'lime' as TileTone, value: activePlayers, label: 'Jogadores ativos' },
-            { icon: Trophy, tone: 'yellow' as TileTone, value: snapshot.peladas.filter((p) => p.status === 'finished').length, label: 'Peladas realizadas' },
-            { icon: Activity, tone: 'emerald' as TileTone, value: snapshot.peladas.filter((p) => p.status !== 'finished').length, label: 'Em aberto' },
-            { icon: Swords, tone: 'sky' as TileTone, value: snapshot.matches.length, label: 'Partidas' },
-          ].map((s) => (
-            <div key={s.label} className="flex items-center gap-3 p-3.5 rounded-2xl bg-[#161616] border border-white/[0.07]">
-              <IconTile icon={s.icon} tone={s.tone} />
-              <div>
-                <div className="font-display font-extrabold text-lg text-white leading-none">{s.value}</div>
-                <div className="text-[11px] text-slate-500 mt-1">{s.label}</div>
-              </div>
+                      <Clock className="w-3.5 h-3.5" />
+                    )}
+                    {myStatus === 'confirmed'
+                      ? 'Você está na lista'
+                      : myStatus === 'declined'
+                      ? 'Você está fora desta pelada'
+                      : 'O admin ainda não te colocou na lista'}
+                  </span>
+                  <button onClick={() => openPelada(nextPelada.id)} className="text-xs font-semibold text-white underline underline-offset-4 cursor-pointer">
+                    Ver pelada
+                  </button>
+                </div>
+              )}
             </div>
-          ))}
+          </section>
+        );
+      })()}
+
+      {/* LISTA DE PELADAS (estilo tabela de jogos) */}
+      <section className="space-y-2.5">
+        <div className="flex items-end justify-between gap-3">
+          <h2 className="font-display font-bold uppercase text-lg text-white leading-none">Peladas</h2>
+          <label className="relative inline-flex items-center gap-1 text-xs font-semibold text-slate-300 cursor-pointer">
+            {month === 'all' ? 'Todas' : formatMonthKey(month).replace('/', ' ')}
+            <ChevronDown className="w-3.5 h-3.5" />
+            <select
+              value={month}
+              onChange={(e) => setMonth(e.target.value)}
+              className="absolute inset-0 opacity-0 cursor-pointer"
+              aria-label="Filtrar peladas por mês"
+            >
+              <option value="all">Todas</option>
+              {months.map((m) => (
+                <option key={m} value={m}>
+                  {formatMonthKey(m).replace('/', ' ')}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
+
+        {groups.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-white/10 px-4 py-8 text-center text-sm text-slate-400">
+            Nenhuma pelada {month === 'all' ? 'criada ainda' : 'neste mês'}.
+            {isAdmin && ' Toque em Nova pelada para criar.'}
+          </div>
+        ) : (
+          groups.map((g) => (
+            <div key={g.key} className="space-y-1.5">
+              {groups.length > 1 && (
+                <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 pt-1">
+                  {formatMonthKey(g.key).replace('/', ' ')}
+                </h3>
+              )}
+              <ul className="rounded-xl bg-[#131613] border border-white/[0.08] divide-y divide-white/[0.06] overflow-hidden">
+                {g.items.map((p) => {
+                  const d = dateParts(p.date);
+                  const st = statusText(p, getPeladaProgress(p, snapshot.matches));
+                  const matchCount = snapshot.matches.filter((m) => m.peladaId === p.id).length;
+                  const champ = p.championLineId ? lineMap.get(p.championLineId) : undefined;
+                  const people = p.status === 'open' ? p.confirmedPlayerIds.length : p.presentPlayerIds.length || p.confirmedPlayerIds.length;
+                  return (
+                    <li key={p.id}>
+                      <button
+                        onClick={() => openPelada(p.id)}
+                        className="w-full flex items-center gap-3.5 px-3.5 py-3 text-left hover:bg-white/[0.03] active:bg-white/[0.05] transition cursor-pointer"
+                      >
+                        <div className="w-10 shrink-0 text-center leading-none">
+                          <div className="font-display font-bold text-xl text-white">{d.day}</div>
+                          <div className="text-[10px] font-semibold uppercase text-slate-500 mt-1">{d.month}</div>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold text-white truncate">{p.title}</span>
+                          </div>
+                          <div className="text-xs text-slate-400 mt-0.5 truncate">
+                            {p.time} · {people} {p.status === 'open' ? 'confirmados' : 'atletas'}
+                            {matchCount > 0 ? ` · ${matchCount} ${matchCount === 1 ? 'jogo' : 'jogos'}` : ''}
+                          </div>
+                        </div>
+                        {champ ? (
+                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-200 shrink-0">
+                            <Trophy className="w-3.5 h-3.5 text-yellow-300" />
+                            <span className="w-2.5 h-2.5 rounded-sm border border-white/20" style={{ backgroundColor: champ.colorHex }} />
+                            {champ.name.replace(/^Linha\s+/i, '')}
+                          </span>
+                        ) : (
+                          <span className={`inline-flex items-center gap-1.5 text-xs font-semibold shrink-0 ${st.cls}`}>
+                            <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                            {st.text}
+                          </span>
+                        )}
+                        <ChevronRight className="w-4 h-4 text-slate-600 shrink-0" aria-hidden />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))
+        )}
       </section>
 
-      {/* DESTAQUES */}
+      {/* NÚMEROS DO BABA: uma faixa só, sem cartões repetidos */}
+      <section aria-label="Números do baba" className="grid grid-cols-4 rounded-xl border border-white/[0.08] divide-x divide-white/[0.06]">
+        {[
+          { value: activePlayers, label: 'jogadores' },
+          { value: snapshot.peladas.filter((p) => p.status === 'finished').length, label: 'realizadas' },
+          { value: openPeladas.length, label: 'em aberto' },
+          { value: snapshot.matches.length, label: 'partidas' },
+        ].map((s) => (
+          <div key={s.label} className="px-2 py-3 text-center">
+            <div className="font-display font-bold text-2xl text-white leading-none">{s.value}</div>
+            <div className="text-[11px] text-slate-400 mt-1">{s.label}</div>
+          </div>
+        ))}
+      </section>
+
+      {/* LÍDERES */}
       <section className="space-y-2.5">
-        <h2 className="text-xs font-bold text-slate-500 px-1">Destaques</h2>
-        <div className="flex gap-2.5 overflow-x-auto pb-1 -mx-1 px-1 snap-x no-scrollbar">
+        <div className="flex items-end justify-between gap-3">
+          <h2 className="font-display font-bold uppercase text-lg text-white leading-none">Líderes</h2>
+          <button onClick={() => setActiveSection('ranking')} className="text-xs font-semibold text-lime-400 cursor-pointer">
+            Ver ranking
+          </button>
+        </div>
+        <ul className="rounded-xl bg-[#131613] border border-white/[0.08] divide-y divide-white/[0.06]">
           {highlights.map((h) => {
             const players = h.ids.map((id) => playerMap.get(id)).filter(Boolean);
+            const Icon = h.icon;
             return (
-              <button
-                key={h.title}
-                onClick={() => players[0] && openPlayerProfile(players[0]!.id)}
-                className="snap-start shrink-0 w-[200px] sm:flex-1 text-left p-3.5 rounded-2xl bg-[#161616] border border-white/[0.07] cursor-pointer hover:border-lime-400/30 transition"
-              >
-                <div className="flex items-center justify-between">
-                  <IconTile icon={h.icon} tone={h.tone} size="sm" />
-                  {players[0] && <PlayerAvatar player={players[0]} size={32} />}
-                </div>
-                <div className="text-[11px] text-slate-500 mt-3">{h.title}</div>
-                <div className="text-sm font-bold text-white truncate">
-                  {players.length ? players.map((p) => playerLabel(p)).join(' & ') : '—'}
-                </div>
-                <div className="text-[11px] text-slate-400 truncate">{players.length ? `${h.value} • ${h.sub}` : 'Sem dados ainda'}</div>
-              </button>
+              <li key={h.title}>
+                <button
+                  onClick={() => players[0] && openPlayerProfile(players[0]!.id)}
+                  disabled={!players.length}
+                  className="w-full flex items-center gap-3 px-3.5 py-3 text-left enabled:hover:bg-white/[0.03] transition enabled:cursor-pointer"
+                >
+                  <Icon className={`w-4 h-4 shrink-0 ${h.iconCls}`} />
+                  <div className="w-24 shrink-0">
+                    <div className="text-xs font-semibold text-slate-300">{h.title}</div>
+                    <div className="text-[10px] text-slate-500 truncate">{h.sub}</div>
+                  </div>
+                  <div className="flex-1 min-w-0 flex items-center gap-2">
+                    {players[0] && <PlayerAvatar player={players[0]} size={24} />}
+                    <span className="text-sm font-semibold text-white truncate">
+                      {players.length === 0
+                        ? 'Sem dados ainda'
+                        : players.length <= 2
+                        ? players.map((p) => playerLabel(p)).join(' e ')
+                        : `${playerLabel(players[0])} e mais ${players.length - 1}`}
+                    </span>
+                  </div>
+                  {players.length > 0 && (
+                    <span className="font-display font-bold text-lg text-white shrink-0">{h.value}</span>
+                  )}
+                </button>
+              </li>
             );
           })}
-        </div>
+        </ul>
       </section>
 
       {/* GRÁFICOS */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        <div className={`${cardClass} !rounded-2xl p-4 space-y-3`}>
-          <h2 className="text-sm font-bold text-white">Gols e jogos por pelada</h2>
+        <section className="rounded-xl border border-white/[0.08] p-4 space-y-3">
+          <h2 className="font-display font-bold uppercase text-base text-white leading-none">Gols e jogos por pelada</h2>
           <StackedBarChart
             data={view.chart}
             series={[
-              { key: 'goals', label: 'Gols', color: '#3FE21A' },
-              { key: 'matches', label: 'Jogos', color: '#3F3F46' },
+              { key: 'goals', label: 'Gols', color: '#52CC33' },
+              { key: 'matches', label: 'Jogos', color: '#3F453D' },
             ]}
             emptyText="Registre jogos para ver a evolução."
           />
-        </div>
-        <div className={`${cardClass} !rounded-2xl p-4 space-y-3`}>
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-bold text-white">Top artilheiros</h2>
-            <button onClick={() => setActiveSection('ranking')} className="text-[11px] font-bold text-lime-400 cursor-pointer">
-              Ver todos
-            </button>
-          </div>
+        </section>
+        <section className="rounded-xl border border-white/[0.08] p-4 space-y-3">
+          <h2 className="font-display font-bold uppercase text-base text-white leading-none">Artilharia</h2>
           <HorizontalBars
             rows={view.topScorers.map((s) => ({
               id: s.playerId,
@@ -429,7 +445,7 @@ export const DashboardPage: React.FC = () => {
               suffix: 'gols',
             }))}
           />
-        </div>
+        </section>
       </div>
     </div>
   );

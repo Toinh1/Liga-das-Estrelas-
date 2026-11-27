@@ -114,9 +114,9 @@ export const LayoutShell: React.FC<{ children: React.ReactNode }> = ({ children 
   const moreActive = moreItems.some((i) => i.id === activeSection);
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-slate-100 flex flex-col lg:flex-row">
+    <div className="min-h-screen bg-[#0B0D0B] text-slate-100 flex flex-col lg:flex-row">
       {/* MENU LATERAL (DESKTOP) */}
-      <aside className="hidden lg:flex lg:flex-col lg:w-60 lg:fixed lg:inset-y-0 bg-[#101010] border-r border-white/[0.07] z-30">
+      <aside className="hidden lg:flex lg:flex-col lg:w-60 lg:fixed lg:inset-y-0 bg-[#0E110E] border-r border-white/[0.07] z-30">
         <div className="px-5 py-5 border-b border-white/[0.07]">
           <button onClick={() => go('dashboard')} className="text-left cursor-pointer">
             <Logo />
@@ -151,7 +151,7 @@ export const LayoutShell: React.FC<{ children: React.ReactNode }> = ({ children 
                   <Icon className="w-[18px] h-[18px]" />
                   {item.label}
                 </span>
-                {badgeFor(item.id) && <span className="w-2 h-2 rounded-full bg-lime-400 animate-pulse" />}
+                {badgeFor(item.id) && <span className="w-2 h-2 rounded-full bg-lime-400" />}
               </button>
             );
           })}
@@ -170,7 +170,7 @@ export const LayoutShell: React.FC<{ children: React.ReactNode }> = ({ children 
 
       {/* CONTEÚDO */}
       <div className="flex-1 lg:pl-60 flex flex-col min-h-screen pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))] lg:pb-8">
-        <header className="sticky top-0 z-20 bg-[#0A0A0A]/90 backdrop-blur-md border-b border-white/[0.06] px-3.5 sm:px-6 py-2.5 sm:py-3 pt-[calc(0.625rem+env(safe-area-inset-top,0px))]">
+        <header className="sticky top-0 z-20 bg-[#0B0D0B]/90 backdrop-blur-md border-b border-white/[0.06] px-3.5 sm:px-6 py-2.5 sm:py-3 pt-[calc(0.625rem+env(safe-area-inset-top,0px))]">
           <div className="max-w-5xl mx-auto flex items-center justify-between">
             <button onClick={() => go('dashboard')} className="lg:hidden cursor-pointer">
               <Logo compact />
@@ -184,14 +184,14 @@ export const LayoutShell: React.FC<{ children: React.ReactNode }> = ({ children 
                 onClick={() => setHelpOpen(true)}
                 aria-label="Como funciona"
                 title="Como funciona"
-                className="p-2 rounded-xl bg-[#1C1C1C] border border-white/10 text-slate-300 hover:text-white transition cursor-pointer"
+                className="p-2 rounded-xl bg-[#191D19] border border-white/10 text-slate-300 hover:text-white transition cursor-pointer"
               >
                 <HelpCircle className="w-4 h-4" />
               </button>
               <button
                 onClick={handleOpenNotifs}
                 aria-label={`Avisos${unreadCount ? ` (${unreadCount} novos)` : ''}`}
-                className="relative p-2 rounded-xl bg-[#1C1C1C] border border-white/10 text-slate-300 hover:text-white transition cursor-pointer"
+                className="relative p-2 rounded-xl bg-[#191D19] border border-white/10 text-slate-300 hover:text-white transition cursor-pointer"
               >
                 <Bell className="w-4 h-4" />
                 {unreadCount > 0 && (
@@ -202,7 +202,7 @@ export const LayoutShell: React.FC<{ children: React.ReactNode }> = ({ children 
               </button>
 
               {notifOpen && (
-                <div className="absolute right-0 top-full mt-2 w-72 sm:w-80 rounded-2xl bg-[#1C1C1C] border border-white/15 shadow-2xl overflow-hidden z-50 animate-fade-in">
+                <div className="absolute right-0 top-full mt-2 w-72 sm:w-80 rounded-2xl bg-[#191D19] border border-white/15 shadow-2xl overflow-hidden z-50 animate-fade-in">
                   <div className="px-4 py-2.5 border-b border-white/10 flex items-center justify-between">
                     <span className="text-xs font-bold text-white">Avisos</span>
                     <div className="flex items-center gap-2">
@@ -245,7 +245,7 @@ export const LayoutShell: React.FC<{ children: React.ReactNode }> = ({ children 
 
       {/* BARRA INFERIOR (CELULAR) */}
       <nav
-        className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-[#101010]/95 backdrop-blur-lg border-t border-white/10 px-2 pt-1 pb-[calc(0.4rem+env(safe-area-inset-bottom,0px))]"
+        className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-[#0E110E] border-t border-white/10 px-2 pt-1 pb-[calc(0.4rem+env(safe-area-inset-bottom,0px))]"
         aria-label="Navegação"
       >
         <div className="grid grid-cols-5 items-end max-w-md mx-auto">
@@ -261,11 +261,11 @@ export const LayoutShell: React.FC<{ children: React.ReactNode }> = ({ children 
                       else go('hoje');
                     }}
                     aria-label={isAdmin ? 'Nova pelada' : 'Pelada atual'}
-                    className="-mt-5 w-14 h-14 rounded-2xl rotate-45 bg-lime-400 text-slate-950 flex items-center justify-center shadow-lg shadow-lime-400/30 active:scale-95 transition cursor-pointer"
+                    className="-mt-4 w-12 h-12 rounded-xl bg-lime-400 text-slate-950 flex items-center justify-center ring-4 ring-[#0E110E] shadow-[0_6px_14px_-4px_rgba(0,0,0,0.6)] active:scale-95 transition cursor-pointer"
                   >
-                    <CenterIcon className="w-6 h-6 -rotate-45" strokeWidth={2.6} />
+                    <CenterIcon className="w-6 h-6" strokeWidth={2.4} />
                   </button>
-                  <span className="text-[10px] font-bold mt-2 text-lime-400 tracking-tight">
+                  <span className="text-[10px] font-semibold mt-1 text-lime-400">
                     {isAdmin ? 'Nova pelada' : 'Jogar'}
                   </span>
                 </div>
@@ -283,7 +283,7 @@ export const LayoutShell: React.FC<{ children: React.ReactNode }> = ({ children 
                 >
                   <Menu className="w-5 h-5" />
                   <span className="text-[10px] font-bold mt-1">Mais</span>
-                  {votingIsOpen && <span className="absolute top-1.5 right-4 w-2 h-2 rounded-full bg-lime-400 animate-ping" />}
+                  {votingIsOpen && <span className="absolute top-1.5 right-4 w-2 h-2 rounded-full bg-lime-400" />}
                 </button>
               );
             }
@@ -311,7 +311,7 @@ export const LayoutShell: React.FC<{ children: React.ReactNode }> = ({ children 
       {moreOpen && (
         <div className="lg:hidden fixed inset-0 z-[25] bg-black/60" onClick={() => setMoreOpen(false)}>
           <div
-            className="absolute bottom-[calc(4.2rem+env(safe-area-inset-bottom,0px))] inset-x-3 rounded-3xl bg-[#171717] border border-white/10 p-3 grid grid-cols-2 gap-2 animate-fade-in"
+            className="absolute bottom-[calc(4.2rem+env(safe-area-inset-bottom,0px))] inset-x-3 rounded-3xl bg-[#141714] border border-white/10 p-3 grid grid-cols-2 gap-2 animate-fade-in"
             onClick={(e) => e.stopPropagation()}
           >
             {moreItems.map((item) => {

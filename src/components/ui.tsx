@@ -2,12 +2,13 @@
  * Componentes visuais compartilhados do FutebolB3 (tema escuro + verde-limão).
  */
 import React from 'react';
+import { ChevronRight, X } from 'lucide-react';
 import { SKILL_MAX, type Player, type Season } from '../types/domain';
 import { formatMonthKey, type PeriodFilter } from '../utils/statsEngine';
 
-export const cardClass = 'rounded-3xl bg-[#161616] border border-white/[0.08]';
+export const cardClass = 'rounded-3xl bg-[#131613] border border-white/[0.08]';
 export const inputClass =
-  'w-full px-3.5 py-2.5 rounded-xl bg-[#1F1F1F] border border-white/10 text-sm text-white focus:outline-none focus:border-lime-400 transition';
+  'w-full px-3.5 py-2.5 rounded-xl bg-[#1B1F1B] border border-white/10 text-sm text-white focus:outline-none focus:border-lime-400 transition';
 export const primaryBtn =
   'inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-lime-400 hover:bg-lime-300 text-slate-950 font-extrabold text-xs sm:text-sm transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed';
 export const ghostBtn =
@@ -18,10 +19,10 @@ export const PageHeader: React.FC<{
   subtitle?: React.ReactNode;
   actions?: React.ReactNode;
 }> = ({ title, subtitle, actions }) => (
-  <div className={`${cardClass} p-4 sm:p-5 flex flex-wrap items-center justify-between gap-3`}>
+  <div className="pt-1 pb-3 border-b border-white/[0.08] flex flex-wrap items-end justify-between gap-3">
     <div className="min-w-0">
-      <h1 className="text-lg sm:text-xl font-extrabold text-white">{title}</h1>
-      {subtitle && <p className="text-xs text-slate-400 mt-0.5">{subtitle}</p>}
+      <h1 className="text-2xl sm:text-3xl text-white">{title}</h1>
+      {subtitle && <p className="text-xs text-slate-400 mt-1">{subtitle}</p>}
     </div>
     {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
   </div>
@@ -38,7 +39,7 @@ export function SegmentedTabs<T extends string>({
 }) {
   return (
     <div
-      className="grid gap-1 p-1 rounded-full bg-white/[0.05] border border-white/[0.06]"
+      className="grid gap-1 p-1 rounded-xl bg-white/[0.04] border border-white/[0.06]"
       style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
       role="tablist"
     >
@@ -48,7 +49,7 @@ export function SegmentedTabs<T extends string>({
           role="tab"
           aria-selected={value === o.id}
           onClick={() => onChange(o.id)}
-          className={`py-2 px-1.5 rounded-full text-[11px] sm:text-xs font-bold transition cursor-pointer truncate ${
+          className={`py-2 px-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition cursor-pointer truncate ${
             value === o.id ? 'bg-lime-400 text-slate-950' : 'text-slate-400 hover:text-white'
           }`}
         >
@@ -77,7 +78,7 @@ export function ChipGroup<T extends string>({
           className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition cursor-pointer ${
             value === o.id
               ? 'bg-lime-400/15 text-lime-400 border border-lime-400/40'
-              : 'bg-[#161616] text-slate-400 border border-white/[0.06] hover:text-white'
+              : 'bg-[#131613] text-slate-400 border border-white/[0.06] hover:text-white'
           }`}
         >
           {o.label}
@@ -103,9 +104,9 @@ export const StatTile: React.FC<{
     slate: 'text-slate-300',
   }[tone];
   return (
-    <div className="p-3 rounded-2xl bg-[#1F1F1F] border border-white/5 text-center" title={hint}>
-      <div className={`font-display font-extrabold text-lg sm:text-xl ${color}`}>{value}</div>
-      <div className="text-[10px] sm:text-[11px] text-slate-500 mt-0.5">{label}</div>
+    <div className="p-3 rounded-xl bg-[#1B1F1B] border border-white/5 text-center" title={hint}>
+      <div className={`font-display font-bold text-2xl leading-none ${color}`}>{value}</div>
+      <div className="text-[11px] text-slate-400 mt-1">{label}</div>
     </div>
   );
 };
@@ -135,9 +136,30 @@ export const PlayerAvatar: React.FC<{ player?: Player; size?: number; className?
     width={size}
     height={size}
     loading="lazy"
-    className={`rounded-full object-cover shrink-0 bg-[#1F1F1F] ${className}`}
+    className={`rounded-full object-cover shrink-0 bg-[#1B1F1B] ${className}`}
     style={{ width: size, height: size }}
   />
+);
+
+/** Selo curto de goleiro, no lugar do emoji de luva. */
+export const GkTag: React.FC = () => (
+  <span
+    className="inline-flex items-center px-1 h-4 rounded border border-sky-400/40 text-[9px] font-bold tracking-wide text-sky-300 shrink-0"
+    title="Goleiro"
+  >
+    GOL
+  </span>
+);
+
+/** Posição na tabela: 1º ouro, 2º prata, 3º bronze; o resto em cinza. */
+export const PosMark: React.FC<{ pos: number }> = ({ pos }) => (
+  <span
+    className={`font-display font-bold text-sm tabular-nums ${
+      pos === 1 ? 'text-yellow-300' : pos === 2 ? 'text-slate-200' : pos === 3 ? 'text-orange-300' : 'text-slate-500'
+    }`}
+  >
+    {pos}º
+  </span>
 );
 
 export const playerLabel = (p?: Player) => (p ? p.nickname || p.name : 'Jogador removido');
@@ -214,20 +236,24 @@ export const Modal: React.FC<{
   wide?: boolean;
 }> = ({ title, onClose, children, wide }) => (
   <div
-    className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm sm:p-4"
+    className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/75 sm:p-4"
     onClick={onClose}
   >
     <div
-      className={`w-full ${wide ? 'max-w-2xl' : 'max-w-md'} max-h-[92vh] flex flex-col rounded-t-3xl sm:rounded-3xl bg-[#171717] border border-white/10 shadow-2xl animate-fade-in`}
+      className={`w-full ${wide ? 'max-w-2xl' : 'max-w-md'} max-h-[92vh] flex flex-col rounded-t-3xl sm:rounded-3xl bg-[#141714] border border-white/10 shadow-2xl animate-fade-in`}
       onClick={(e) => e.stopPropagation()}
       role="dialog"
       aria-modal="true"
       aria-label={title}
     >
       <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between shrink-0">
-        <h2 className="text-sm font-bold text-white">{title}</h2>
-        <button onClick={onClose} className="text-slate-400 hover:text-white cursor-pointer text-lg leading-none" aria-label="Fechar">
-          ✕
+        <h2 className="text-base font-bold uppercase tracking-wide text-white">{title}</h2>
+        <button
+          onClick={onClose}
+          className="-mr-1.5 p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.06] cursor-pointer transition"
+          aria-label="Fechar"
+        >
+          <X className="w-4 h-4" />
         </button>
       </div>
       <div className="overflow-y-auto">{children}</div>
@@ -270,7 +296,7 @@ export const PeriodSelect: React.FC<{
   <select
     value={periodKey(value)}
     onChange={(e) => onChange(parsePeriodKey(e.target.value))}
-    className="px-3 py-2 rounded-xl bg-[#161616] border border-white/10 text-xs font-bold text-white focus:outline-none focus:border-lime-400 cursor-pointer max-w-full"
+    className="px-3 py-2 rounded-xl bg-[#131613] border border-white/10 text-xs font-bold text-white focus:outline-none focus:border-lime-400 cursor-pointer max-w-full"
     aria-label="Período"
   >
     <option value="all">Todo o histórico</option>
@@ -312,13 +338,13 @@ export const PeriodSelect: React.FC<{
 export type TileTone = 'lime' | 'orange' | 'emerald' | 'rose' | 'sky' | 'yellow' | 'slate';
 
 const TILE_TONES: Record<TileTone, string> = {
-  lime: 'bg-lime-400/15 text-lime-400',
-  orange: 'bg-orange-500/15 text-orange-400',
-  emerald: 'bg-emerald-500/15 text-emerald-400',
-  rose: 'bg-rose-500/15 text-rose-400',
-  sky: 'bg-sky-500/15 text-sky-400',
-  yellow: 'bg-yellow-400/15 text-yellow-300',
-  slate: 'bg-white/[0.06] text-slate-300',
+  lime: 'text-lime-400',
+  orange: 'text-orange-400',
+  emerald: 'text-emerald-400',
+  rose: 'text-rose-400',
+  sky: 'text-sky-400',
+  yellow: 'text-yellow-300',
+  slate: 'text-slate-300',
 };
 
 export const IconTile: React.FC<{ icon: React.ElementType; tone?: TileTone; size?: 'sm' | 'md' }> = ({
@@ -327,7 +353,7 @@ export const IconTile: React.FC<{ icon: React.ElementType; tone?: TileTone; size
   size = 'md',
 }) => (
   <div
-    className={`${size === 'md' ? 'w-10 h-10 rounded-xl' : 'w-8 h-8 rounded-lg'} flex items-center justify-center shrink-0 ${TILE_TONES[tone]}`}
+    className={`${size === 'md' ? 'w-10 h-10 rounded-xl' : 'w-8 h-8 rounded-lg'} flex items-center justify-center shrink-0 bg-white/[0.05] border border-white/[0.06] ${TILE_TONES[tone]}`}
   >
     <Icon className={size === 'md' ? 'w-5 h-5' : 'w-4 h-4'} />
   </div>
@@ -339,7 +365,7 @@ export const InfoChip: React.FC<{ icon?: React.ElementType; children: React.Reac
   tone = 'default',
 }) => (
   <span
-    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap ${
+    className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-semibold whitespace-nowrap ${
       tone === 'lime' ? 'bg-lime-400/15 text-lime-300' : 'bg-white/[0.06] text-slate-300'
     }`}
   >
@@ -350,7 +376,7 @@ export const InfoChip: React.FC<{ icon?: React.ElementType; children: React.Reac
 
 /** Placar em caixinhas: [3] : [1] */
 export const ScoreBox: React.FC<{ home: number; away: number }> = ({ home, away }) => (
-  <div className="flex items-center gap-1 shrink-0 font-display font-extrabold text-sm text-white">
+  <div className="flex items-center gap-1 shrink-0 font-display font-bold text-base text-white">
     <span className="w-7 h-7 rounded-lg bg-white/[0.07] border border-white/10 flex items-center justify-center">{home}</span>
     <span className="text-slate-500">:</span>
     <span className="w-7 h-7 rounded-lg bg-white/[0.07] border border-white/10 flex items-center justify-center">{away}</span>
@@ -383,16 +409,14 @@ export const SessionCard: React.FC<{
           <div className="flex items-center gap-1 shrink-0">
             {actions}
             {onClick && (
-              <span className="w-7 h-7 rounded-full bg-white/[0.06] flex items-center justify-center text-slate-400" aria-hidden>
-                ›
-              </span>
+              <ChevronRight className="w-4 h-4 text-slate-500" aria-hidden />
             )}
           </div>
         </div>
       )}
     </>
   );
-  const cls = 'w-full text-left rounded-2xl bg-[#161616] border border-white/[0.07] p-3.5 transition';
+  const cls = 'w-full text-left rounded-2xl bg-[#131613] border border-white/[0.07] p-3.5 transition';
   return onClick ? (
     <div
       role="button"
@@ -422,7 +446,7 @@ export const RingProgress: React.FC<{ value: number; size?: number; label?: stri
           cy={size / 2}
           r={r}
           fill="none"
-          stroke="#3FE21A"
+          stroke="#52CC33"
           strokeWidth={3}
           strokeLinecap="round"
           strokeDasharray={c}
@@ -446,14 +470,14 @@ export function PillTabs<T extends string>({
   options: { id: T; label: React.ReactNode }[];
 }) {
   return (
-    <div className="flex p-1 rounded-full bg-white/[0.05] border border-white/[0.06]" role="tablist">
+    <div className="flex p-1 rounded-xl bg-white/[0.04] border border-white/[0.06]" role="tablist">
       {options.map((o) => (
         <button
           key={o.id}
           role="tab"
           aria-selected={value === o.id}
           onClick={() => onChange(o.id)}
-          className={`flex-1 py-2 px-3 rounded-full text-xs font-bold transition cursor-pointer ${
+          className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition cursor-pointer ${
             value === o.id ? 'bg-lime-400 text-slate-950' : 'text-slate-400 hover:text-white'
           }`}
         >
@@ -491,7 +515,7 @@ export const BrandLogo: React.FC<{ size?: number; className?: string }> = ({ siz
 
 /** Nome no estilo do logo: "Futebol" prateado + "B3" verde-neon, itálico e pesado. */
 export const BrandWordmark: React.FC<{ className?: string }> = ({ className = 'text-base' }) => (
-  <span className={`font-display font-black italic tracking-tight leading-none ${className}`}>
+  <span className={`font-display font-bold uppercase tracking-wide leading-none ${className}`}>
     <span className="text-chrome">Futebol</span>
     <span className="text-neon">B3</span>
   </span>
