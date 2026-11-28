@@ -187,16 +187,16 @@ export const RankingPage: React.FC = () => {
           ) : (
             <div className={`${cardClass} overflow-hidden`}>
               <div className="overflow-x-auto">
-                <table className="w-full text-sm min-w-[460px]">
+                <table className="w-full text-base">
                   <thead>
-                    <tr className="text-xs text-slate-500 border-b border-white/[0.05]">
-                      <th className="text-left py-2.5 pl-4 pr-2 w-10">#</th>
-                      <th className="text-left py-2.5 px-2">Atleta</th>
-                      <th className="text-center py-2.5 px-2 text-slate-200">{METRICS.find((m) => m.id === metric)!.label}</th>
-                      <th className="text-center py-2.5 px-2" title="Jogos">J</th>
-                      <th className="text-center py-2.5 px-2" title="Gols">G</th>
-                      <th className="text-center py-2.5 px-2" title="Assistências">A</th>
-                      <th className="text-center py-2.5 pl-2 pr-4" title="Aproveitamento">%</th>
+                    <tr className="text-sm text-slate-500 border-b border-white/[0.05]">
+                      <th className="text-left py-3.5 pl-3 sm:pl-4 pr-1 w-9">#</th>
+                      <th className="text-left py-3.5 px-1.5 sm:px-2">Atleta</th>
+                      <th className="text-center py-3.5 px-1.5 sm:px-2 text-slate-200">{METRICS.find((m) => m.id === metric)!.label}</th>
+                      <th className="text-center py-3.5 px-1.5 sm:px-2" title="Jogos">J</th>
+                      <th className="text-center py-3.5 pl-1.5 pr-3 sm:px-2" title="Gols">G</th>
+                      <th className="hidden sm:table-cell text-center py-3.5 px-2" title="Assistências">A</th>
+                      <th className="hidden sm:table-cell text-center py-3.5 pl-2 pr-4" title="Aproveitamento">%</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/[0.04]">
@@ -209,29 +209,29 @@ export const RankingPage: React.FC = () => {
                           onClick={() => (editMode && isAdmin ? setEditPlayerId(s.playerId) : openPlayerProfile(s.playerId))}
                           className={`hover:bg-white/[0.03] transition cursor-pointer ${pos === 1 ? 'bg-lime-400/[0.05]' : ''}`}
                         >
-                          <td className="py-2.5 pl-4 pr-2">
+                          <td className="py-4 pl-3 sm:pl-4 pr-1">
                             <PosMark pos={pos} />
                           </td>
-                          <td className="py-2.5 px-2">
-                            <div className="flex items-center gap-2.5 min-w-0">
-                              <PlayerAvatar player={p} size={30} />
+                          <td className="py-4 px-1.5 sm:px-2 max-w-0 w-full">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <PlayerAvatar player={p} size={40} />
                               <div className="min-w-0">
-                                <div className="font-bold text-white text-sm truncate flex items-center gap-1.5">
-                                  {playerLabel(p)}
-                                  {editMode && isAdmin && <Pencil className="w-3 h-3 text-yellow-300 shrink-0" />}
+                                <div className="font-bold text-white text-base truncate flex items-center gap-1.5">
+                                  <span className="truncate">{playerLabel(p)}</span>
+                                  {editMode && isAdmin && <Pencil className="w-3.5 h-3.5 text-yellow-300 shrink-0" />}
                                 </div>
-                                <div className="text-[11px] text-slate-500">{p?.position}</div>
+                                <div className="text-xs text-slate-500">{p?.position}</div>
                               </div>
                             </div>
                           </td>
-                          <td className="py-2.5 px-2 text-center font-display font-extrabold text-lime-400 whitespace-nowrap">
+                          <td className="py-4 px-1.5 sm:px-2 text-center font-display text-2xl font-bold text-lime-400 whitespace-nowrap">
                             {v}
-                            <span className="text-[10px] text-slate-500 font-sans ml-0.5">{unit}</span>
+                            <span className="text-xs text-slate-500 font-sans font-normal ml-0.5">{unit}</span>
                           </td>
-                          <td className="py-2.5 px-2 text-center text-slate-300">{s.matchesPlayed}</td>
-                          <td className="py-2.5 px-2 text-center text-slate-300">{s.goals}</td>
-                          <td className="py-2.5 px-2 text-center text-slate-300">{s.assists}</td>
-                          <td className="py-2.5 pl-2 pr-4 text-center text-slate-400 text-xs">{s.efficiency}%</td>
+                          <td className="py-4 px-1.5 sm:px-2 text-center text-slate-300">{s.matchesPlayed}</td>
+                          <td className="py-4 pl-1.5 pr-3 sm:px-2 text-center text-slate-300">{s.goals}</td>
+                          <td className="hidden sm:table-cell py-4 px-2 text-center text-slate-300">{s.assists}</td>
+                          <td className="hidden sm:table-cell py-4 pl-2 pr-4 text-center text-slate-400 text-sm">{s.efficiency}%</td>
                         </tr>
                       );
                     })}

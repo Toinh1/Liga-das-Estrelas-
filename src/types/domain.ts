@@ -36,6 +36,29 @@ export const PELADA_WEEKDAY_LABEL = 'Quarta';
 export const MIN_LINES = 3;
 export const MAX_LINES = 4;
 
+/** Cada time joga com 6: pelada de 18 = 3 times, pelada de 24 = 4 times. */
+export const PLAYERS_PER_TEAM = 6;
+
+/** Quantos times a pelada deve ter para a quantidade de jogadores da lista. */
+export function suggestTeamCount(players: number): number {
+  return Math.min(MAX_LINES, Math.max(MIN_LINES, Math.round(players / PLAYERS_PER_TEAM)));
+}
+
+/** Escolhe `count` linhas mantendo as já escolhidas primeiro (null se não houver linhas suficientes). */
+export function pickLineIds(current: string[], allLineIds: string[], count: number): string[] | null {
+  const valid = current.filter((id) => allLineIds.includes(id));
+  let next = valid.slice(0, count);
+  if (next.length < count) next = [...next, ...allLineIds.filter((id) => !next.includes(id)).slice(0, count - next.length)];
+  return next.length === count ? next : null;
+}
+
+/** Texto curto: "pelada de 24 · 4 times de 6". */
+export function teamSplitLabel(players: number): string {
+  const k = suggestTeamCount(players);
+  const per = players / k;
+  return `pelada de ${players} · ${k} times de ${Number.isInteger(per) ? per : `${Math.floor(per)} a ${Math.ceil(per)}`}`;
+}
+
 export interface UserAccount {
   id: string;
   name: string;

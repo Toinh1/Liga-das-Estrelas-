@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Edit3, Flag, Plus, Timer, Trash2 } from 'lucide-react';
+import { Edit3, Flag, Plus, Swords, Timer, Trash2, X } from 'lucide-react';
 import { useBaba } from '../../context/BabaContext';
 import { babaService } from '../../services/babaService';
 import type { LineTeam, MatchRecord, MatchScorerEntry, Pelada } from '../../types/domain';
-import { computePeladaStandings } from '../../utils/statsEngine';
+import { computePeladaStandings, findTopTie } from '../../utils/statsEngine';
 import { StandingsTable } from '../StandingsTable';
 import { playerLabel } from '../ui';
 import { MatchEditorModal } from './MatchEditorModal';
@@ -24,7 +24,8 @@ const shortLine = (l?: LineTeam) => (l ? l.name.replace(/^linha\s+/i, '') : 'Lin
 
 export const MatchesPanel: React.FC<{ pelada: Pelada; onClosePelada?: () => void }> = ({ pelada, onClosePelada }) => {
   const { snapshot, isAdmin, runAction, busyAction } = useBaba();
-  const [editor, setEditor] = useState<{ match?: MatchRecord } | null>(null);
+  const [editor, setEditor] = useState<{ match?: MatchRecord; preset?: { homeLineId: string; awayLineId: string } } | null>(null);
+  const [tieOpen, setTieOpen] = useState(false);
 
   const lines = useMemo(() => {
     if (!snapshot) return [] as LineTeam[];
@@ -43,6 +44,10 @@ export const MatchesPanel: React.FC<{ pelada: Pelada; onClosePelada?: () => void
   const lineMap = new Map(snapshot.lines.map((l) => [l.id, l]));
   const playerMap = new Map(snapshot.players.map((p) => [p.id, p]));
   const allLines = [...lines, ...snapshot.lines.filter((l) => !lines.includes(l))];
+
+  // Empate em tudo no 1º lugar: não encerra sem jogo de desempate
+  const tie = canEdit ? findTopTie(standings) : [];
+  const tieLabel = tie.map((t) => shortLine(lineMap.get(t.lineId))).join(' × ');
 
   // Partida com cronômetro em andamento neste aparelho (sobrevive a fechar a janela)
   const live = canEdit && !editor ? loadLive(pelada.id) : null;
@@ -150,6 +155,38 @@ export const MatchesPanel: React.FC<{ pelada: Pelada; onClosePelada?: () => void
       {/* 3. AÇÕES DO ADMIN: fixas no rodapé, ao alcance do polegar */}
       {canEdit && lines.length >= 2 && (
         <div className="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] lg:bottom-4 z-10">
+          {tieOpen && tie.length > 0 && (
+            <div className="mb-2 p-3.5 rounded-xl bg-[#1A1708] border border-yellow-400/40 shadow-[0_8px_24px_-8px_rgba(0,0,0,0.8)] animate-fade-in">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="font-display font-bold uppercase text-lg text-yellow-300 leading-tight">Empate no 1º lugar</div>
+                  <p className="mt-1 text-sm text-slate-200 leading-snug">
+                    <strong>{tieLabel}</strong> estão iguais em tudo ({tie[0].points} pts, {tie[0].wins} V, saldo{' '}
+                    {tie[0].goalDifference > 0 ? '+' : ''}
+                    {tie[0].goalDifference}, {tie[0].goalsFor} gols). Faça um jogo de desempate para decidir a campeã.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setTieOpen(false)}
+                  className="p-1 -mr-1 rounded-lg text-slate-400 hover:text-white cursor-pointer shrink-0"
+                  aria-label="Fechar aviso de empate"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              {!live && (
+                <button
+                  onClick={() => {
+                    setTieOpen(false);
+                    setEditor({ preset: { homeLineId: tie[0].lineId, awayLineId: tie[1].lineId } });
+                  }}
+                  className="mt-3 w-full inline-flex items-center justify-center gap-2 py-3 rounded-lg bg-yellow-300 hover:bg-yellow-200 text-slate-950 text-sm font-bold cursor-pointer"
+                >
+                  <Swords className="w-4 h-4" /> Jogo de desempate: {shortLine(lineMap.get(tie[0].lineId))} × {shortLine(lineMap.get(tie[1].lineId))}
+                </button>
+              )}
+            </div>
+          )}
           <div className="flex gap-2 p-2 rounded-xl bg-[#0E110E]/95 border border-white/10 shadow-[0_8px_24px_-8px_rgba(0,0,0,0.8)] backdrop-blur">
             {live ? (
               <button
@@ -170,7 +207,7 @@ export const MatchesPanel: React.FC<{ pelada: Pelada; onClosePelada?: () => void
             )}
             {onClosePelada && (
               <button
-                onClick={onClosePelada}
+                onClick={() => (tie.length ? setTieOpen(true) : onClosePelada())}
                 disabled={busyAction || roundMatches.length === 0}
                 title={roundMatches.length === 0 ? 'Registre pelo menos um jogo antes de encerrar' : 'Encerrar o Baba'}
                 className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg border border-lime-400/50 text-lime-300 hover:bg-lime-400/10 text-sm font-bold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
@@ -187,6 +224,7 @@ export const MatchesPanel: React.FC<{ pelada: Pelada; onClosePelada?: () => void
           pelada={pelada}
           lines={editor.match ? allLines : lines}
           match={editor.match}
+          preset={editor.preset}
           onClose={() => setEditor(null)}
         />
       )}

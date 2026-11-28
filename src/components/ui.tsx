@@ -154,7 +154,7 @@ export const GkTag: React.FC = () => (
 /** Posição na tabela: 1º ouro, 2º prata, 3º bronze; o resto em cinza. */
 export const PosMark: React.FC<{ pos: number }> = ({ pos }) => (
   <span
-    className={`font-display font-bold text-sm tabular-nums ${
+    className={`font-display font-bold text-lg tabular-nums ${
       pos === 1 ? 'text-yellow-300' : pos === 2 ? 'text-slate-200' : pos === 3 ? 'text-orange-300' : 'text-slate-500'
     }`}
   >
@@ -165,16 +165,17 @@ export const PosMark: React.FC<{ pos: number }> = ({ pos }) => (
 export const playerLabel = (p?: Player) => (p ? p.nickname || p.name : 'Jogador removido');
 
 /**
- * Cores por nível num só tom de vermelho: o nível 1 (melhor) é o vermelho
- * mais forte e cada nível seguinte fica mais claro, até o 6 (mais fraco).
+ * Cores por nível num só tom de verde (cor do escudo): o nível 1 (melhor) é o
+ * verde mais claro e cada nível seguinte fica mais forte, até o 6 (mais fraco).
  */
 const LEVEL_HEX: Record<number, { bg: string; fg: string }> = {
-  1: { bg: '#7A0A0A', fg: '#FFFFFF' },
-  2: { bg: '#B51414', fg: '#FFFFFF' },
-  3: { bg: '#EE3B3B', fg: '#FFFFFF' },
-  4: { bg: '#F77B7B', fg: '#1A0505' },
-  5: { bg: '#FBB5B5', fg: '#1A0505' },
-  6: { bg: '#FEE8E8', fg: '#1A0505' },
+  // 1 e 2 em verde-cana (amarelado), clareando para o melhor nível
+  1: { bg: '#DCF08C', fg: '#0B1A07' },
+  2: { bg: '#B8DC3E', fg: '#0B1A07' },
+  3: { bg: '#7FDD62', fg: '#0B1A07' },
+  4: { bg: '#4CBF2C', fg: '#0B1A07' },
+  5: { bg: '#2E8A17', fg: '#FFFFFF' },
+  6: { bg: '#185409', fg: '#FFFFFF' },
 };
 const levelStyle = (level: number): React.CSSProperties | undefined =>
   LEVEL_HEX[level] ? { backgroundColor: LEVEL_HEX[level].bg, color: LEVEL_HEX[level].fg } : undefined;
@@ -199,12 +200,17 @@ export const LevelBadge: React.FC<{ level: number; compact?: boolean }> = ({ lev
 export const SkillMeter: React.FC<{
   value: number;
   onChange?: (v: number) => void;
-  size?: 'sm' | 'md';
+  /** 'lg': botões grandes que ocupam a largura toda (bom para o dedo no celular). */
+  size?: 'sm' | 'md' | 'lg';
 }> = ({ value, onChange, size = 'sm' }) => {
   if (!onChange) return <LevelBadge level={value} />;
-  const box = size === 'sm' ? 'w-6 h-6 text-[10px]' : 'w-8 h-8 text-xs';
+  const box = size === 'sm' ? 'w-6 h-6 text-[10px]' : size === 'md' ? 'w-8 h-8 text-xs' : 'w-full h-11 text-base';
   return (
-    <div className="inline-flex items-center gap-1" role="radiogroup" aria-label="Nível técnico (1 = melhor)">
+    <div
+      className={size === 'lg' ? 'grid grid-cols-6 gap-1.5 w-full' : 'inline-flex items-center gap-1'}
+      role="radiogroup"
+      aria-label="Nível técnico (1 = melhor)"
+    >
       {Array.from({ length: SKILL_MAX }, (_, i) => {
         const level = i + 1;
         const selected = level === value;
@@ -217,7 +223,7 @@ export const SkillMeter: React.FC<{
             onClick={() => onChange(level)}
             title={level === 1 ? 'Nível 1 — melhor' : level === SKILL_MAX ? `Nível ${level} — mais fraco` : `Nível ${level}`}
             className={`${box} rounded-lg flex items-center justify-center font-extrabold transition cursor-pointer ${
-              selected ? 'scale-110 shadow' : 'bg-white/[0.07] text-slate-400 hover:text-white'
+              selected ? (size === 'lg' ? 'shadow ring-2 ring-white/30' : 'scale-110 shadow') : 'bg-white/[0.07] text-slate-400 hover:text-white'
             }`}
             style={selected ? levelStyle(level) : undefined}
           >

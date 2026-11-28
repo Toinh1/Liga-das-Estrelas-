@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { ArrowRight, Check, ChevronDown, ClipboardCopy, Palette, RefreshCw, Scale, Shuffle, Trash2, X } from 'lucide-react';
 import { useBaba } from '../../context/BabaContext';
 import { babaService } from '../../services/babaService';
-import { MAX_LINES, MIN_LINES, type LineTeam, type Pelada, type Player } from '../../types/domain';
+import { MAX_LINES, MIN_LINES, pickLineIds, suggestTeamCount, teamSplitLabel, type LineTeam, type Pelada, type Player } from '../../types/domain';
 import { formatShortDateBR } from '../../utils/statsEngine';
 import {
   balanceTeams,
@@ -32,7 +32,7 @@ const LineColorPicker: React.FC<{
   playerName: string;
   onPick: (lineId: string) => void;
 }> = ({ lines, current, playerName, onPick }) => (
-  <div className="flex items-center gap-1" role="radiogroup" aria-label={`Time de ${playerName}`}>
+  <div className="flex items-center gap-1.5" role="radiogroup" aria-label={`Time de ${playerName}`}>
     {lines.map((l) => {
       const active = l.id === current;
       return (
@@ -44,7 +44,7 @@ const LineColorPicker: React.FC<{
           aria-label={l.name}
           title={active ? `Está na ${l.name}` : `Mover para ${l.name}`}
           onClick={() => !active && onPick(l.id)}
-          className={`w-5 h-5 rounded-full border transition shrink-0 ${
+          className={`w-7 h-7 rounded-full border-2 transition shrink-0 ${
             active
               ? 'border-white ring-2 ring-lime-400 ring-offset-1 ring-offset-[#1B1F1B] cursor-default'
               : 'border-white/20 opacity-50 hover:opacity-100 hover:scale-110 cursor-pointer'
@@ -158,13 +158,8 @@ export const TeamsPanel: React.FC<{ pelada: Pelada; onConfirmed?: () => void }> 
   };
 
   const setTeamCount = async (count: number) => {
-    const current = pelada.participatingLineIds;
-    let next = current.slice(0, count);
-    if (next.length < count) {
-      const extra = snapshot.lines.map((l) => l.id).filter((id) => !next.includes(id));
-      next = [...next, ...extra.slice(0, count - next.length)];
-    }
-    if (next.length < count) return pushToast('Crie mais linhas (cores) primeiro', undefined, 'error');
+    const next = pickLineIds(pelada.participatingLineIds, snapshot.lines.map((l) => l.id), count);
+    if (!next) return pushToast('Crie mais linhas (cores) primeiro', undefined, 'error');
     setDraft(null);
     await runAction(() => babaService.setParticipatingLines(pelada.id, next), `${count} times nesta pelada`);
   };
@@ -213,6 +208,8 @@ export const TeamsPanel: React.FC<{ pelada: Pelada; onConfirmed?: () => void }> 
   };
 
   const hasTeams = assigned.size > 0 || Boolean(draft);
+  const savedTeams = Object.values(pelada.lineRosters).some((ids) => ids.length > 0);
+  const wantTeams = suggestTeamCount(confirmed.length);
   const smallBtn =
     'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/10 text-xs font-semibold text-slate-300 hover:text-white hover:border-white/25 transition cursor-pointer';
 
@@ -230,38 +227,41 @@ export const TeamsPanel: React.FC<{ pelada: Pelada; onConfirmed?: () => void }> 
         <button
           type="button"
           onClick={() => setLevelsOpen(!open)}
-          className="w-full px-3.5 py-3 flex items-center justify-between gap-2 cursor-pointer"
+          className="w-full px-4 py-4 flex items-center justify-between gap-2 cursor-pointer"
           aria-expanded={open}
         >
           <div className="text-left min-w-0">
-            <div className="text-sm font-semibold text-white">Nível dos confirmados ({confirmed.length})</div>
-            <div className="flex flex-wrap items-center gap-1.5 mt-1">
+            <div className="font-display font-bold uppercase text-lg text-white leading-none">
+              Nível dos confirmados <span className="text-slate-500">({confirmed.length})</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 mt-2">
               {counts.map((c, i) => (
-                <span key={i} className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-slate-400 tabular-nums">
-                  <LevelBadge level={i + 1} compact />×{c}
+                <span key={i} className="inline-flex items-center gap-1 text-xs font-semibold text-slate-300 tabular-nums">
+                  <LevelBadge level={i + 1} />×{c}
                 </span>
               ))}
             </div>
           </div>
-          <ChevronDown className={`w-4 h-4 text-slate-400 shrink-0 transition ${open ? 'rotate-180' : ''}`} />
+          <ChevronDown className={`w-5 h-5 text-slate-400 shrink-0 transition ${open ? 'rotate-180' : ''}`} />
         </button>
 
         {open && (
-          <div className="px-3.5 pb-3.5 space-y-2.5 animate-fade-in">
-            <p className={`text-xs leading-relaxed ${fitsPots ? 'text-lime-300' : 'text-amber-200'}`}>
+          <div className="px-4 pb-4 space-y-3 animate-fade-in">
+            <p className={`text-sm leading-relaxed ${fitsPots ? 'text-lime-300' : 'text-amber-200'}`}>
               {fitsPots
                 ? `Fechou: cada um dos ${k} times vai receber ${confirmed.length / k} jogadores, com a mesma quantidade de cada nível.`
                 : `Para cada time ter um jogador de cada nível, cada nível precisa de ${k} jogadores. Ajuste os níveis ou o sorteio vai misturar níveis vizinhos.`}
             </p>
-            <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-4 divide-y divide-white/[0.05] md:divide-y-0">
+            <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-6 divide-y divide-white/[0.06] md:divide-y-0">
               {sorted.map((p) => (
-                <li key={p.id} className="flex items-center justify-between gap-2 py-1.5">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <PlayerAvatar player={p} size={24} />
-                    <span className="text-sm text-white truncate">{playerLabel(p)}</span>
+                <li key={p.id} className="py-3 space-y-2">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <PlayerAvatar player={p} size={32} />
+                    <span className="text-base font-semibold text-white truncate">{playerLabel(p)}</span>
                     {p.position === 'Goleiro' && <GkTag />}
                   </div>
                   <SkillMeter
+                    size="lg"
                     value={p.skillLevel}
                     onChange={(v) => {
                       if (v === p.skillLevel) return;
@@ -326,6 +326,21 @@ export const TeamsPanel: React.FC<{ pelada: Pelada; onConfirmed?: () => void }> 
           )}
         </div>
       </div>
+
+      {canEdit && wantTeams !== lines.length && confirmed.length > 0 && !hasMatches && !savedTeams && (
+        <div className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-3 rounded-xl bg-lime-400/[0.07] border border-lime-400/30">
+          <span className="text-sm text-lime-200">
+            {confirmed.length} confirmados: <strong>{teamSplitLabel(confirmed.length)}</strong>
+          </span>
+          <button
+            disabled={busyAction}
+            onClick={() => setTeamCount(wantTeams)}
+            className="px-3 py-1.5 rounded-lg bg-lime-400 text-slate-950 text-xs font-extrabold cursor-pointer"
+          >
+            Usar {wantTeams} times
+          </button>
+        </div>
+      )}
 
       {draft && (
         <p className="px-3.5 py-2.5 rounded-xl bg-amber-500/[0.08] border border-amber-400/25 text-xs text-amber-200 leading-relaxed">
@@ -412,31 +427,31 @@ export const TeamsPanel: React.FC<{ pelada: Pelada; onConfirmed?: () => void }> 
                 style={{ borderColor: `${line.colorHex}66` }}
                 aria-label={line.name}
               >
-                <header className="px-3.5 py-2.5 border-b border-white/[0.06] flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <span className="w-3.5 h-3.5 rounded-sm border border-white/25 shrink-0" style={{ backgroundColor: line.colorHex }} />
-                    <h3 className="font-display font-bold uppercase text-base text-white truncate">{line.name}</h3>
-                    <span className="text-xs text-slate-500 shrink-0">{teamPlayers.length}</span>
+                <header className="px-4 py-3.5 border-b border-white/[0.06] flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="w-5 h-5 rounded-md border border-white/25 shrink-0" style={{ backgroundColor: line.colorHex }} />
+                    <h3 className="font-display font-bold uppercase text-xl text-white truncate">{line.name}</h3>
+                    <span className="text-sm text-slate-500 shrink-0">{teamPlayers.length}</span>
                   </div>
                   {isAdmin && teamPlayers.length > 0 && (
-                    <span className="text-xs text-slate-400 shrink-0" title="Nível médio (1 = melhor)">
-                      média <strong className="font-display text-sm text-white">{s.averageLevel.toFixed(1).replace('.', ',')}</strong>
+                    <span className="text-sm text-slate-400 shrink-0" title="Nível médio (1 = melhor)">
+                      média <strong className="font-display text-lg text-white">{s.averageLevel.toFixed(1).replace('.', ',')}</strong>
                     </span>
                   )}
                 </header>
 
                 {teamPlayers.length === 0 ? (
-                  <div className="py-5 text-center text-xs text-slate-500">
+                  <div className="py-6 text-center text-sm text-slate-500">
                     {canEdit ? 'Sem jogadores ainda' : 'Times ainda não definidos'}
                   </div>
                 ) : (
                   <ul className="divide-y divide-white/[0.05]">
                     {teamPlayers.map((p) => (
-                      <li key={p.id} className="flex items-center justify-between gap-2 px-3.5 py-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          {isAdmin && <LevelBadge level={p.skillLevel} compact />}
-                          <PlayerAvatar player={p} size={22} />
-                          <span className="text-sm text-white truncate">{playerLabel(p)}</span>
+                      <li key={p.id} className="flex items-center justify-between gap-2 px-4 py-3">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          {isAdmin && <LevelBadge level={p.skillLevel} />}
+                          <PlayerAvatar player={p} size={30} />
+                          <span className="text-base font-medium text-white truncate">{playerLabel(p)}</span>
                           {p.position === 'Goleiro' && <GkTag />}
                         </div>
                         {canEdit && (

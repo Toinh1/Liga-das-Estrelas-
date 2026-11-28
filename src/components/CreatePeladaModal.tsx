@@ -4,7 +4,7 @@ import { useBaba } from '../context/BabaContext';
 import { babaService } from '../services/babaService';
 import { resolveRoster, type RosterChoices } from '../utils/rosterParser';
 import { RosterLinesEditor } from './RosterLinesEditor';
-import { MAX_LINES, MIN_LINES, PELADA_DEFAULT_TIME, PELADA_WEEKDAY } from '../types/domain';
+import { MAX_LINES, MIN_LINES, PELADA_DEFAULT_TIME, PELADA_WEEKDAY, pickLineIds, suggestTeamCount, teamSplitLabel } from '../types/domain';
 import { getNextWeekdayISO } from '../utils/statsEngine';
 import { LineBadge } from './LineBadge';
 import { Modal, inputClass, primaryBtn } from './ui';
@@ -23,6 +23,7 @@ export const CreatePeladaModal: React.FC = () => {
     setSelectedPeladaId,
     setActiveSection,
     busyAction,
+    pushToast,
   } = useBaba();
 
   const [title, setTitle] = useState('');
@@ -33,6 +34,8 @@ export const CreatePeladaModal: React.FC = () => {
   const [rosterText, setRosterText] = useState('');
   const [rosterChoices, setRosterChoices] = useState<RosterChoices>({});
   const [showImport, setShowImport] = useState(false);
+  /** O admin escolheu as equipes na mão: a lista não muda mais a quantidade. */
+  const [linesTouched, setLinesTouched] = useState(false);
 
   useEffect(() => {
     if (!openCreatePeladaModal || !snapshot) return;
@@ -49,21 +52,42 @@ export const CreatePeladaModal: React.FC = () => {
     setRosterText('');
     setRosterChoices({});
     setShowImport(false);
+    setLinesTouched(false);
     // Recarrega o formulário apenas ao abrir
   }, [openCreatePeladaModal]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const resolvedRoster = snapshot && rosterText ? resolveRoster(rosterText, snapshot.players, rosterChoices) : null;
+  const parsedItems = resolvedRoster?.items ?? [];
+  const listCount = parsedItems.length;
+
+  // Lista colada: 18 jogadores = 3 times, 24 = 4 times (a menos que o admin tenha escolhido na mão)
+  useEffect(() => {
+    if (!snapshot || listCount === 0 || linesTouched) return;
+    const want = suggestTeamCount(listCount);
+    setSelectedLineIds((prev) => {
+      if (prev.length === want) return prev;
+      return pickLineIds(prev, snapshot.lines.map((l) => l.id), want) ?? prev;
+    });
+  }, [listCount, linesTouched]); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (!openCreatePeladaModal || !snapshot || !user) return null;
 
-  const parsedItems = rosterText ? resolveRoster(rosterText, snapshot.players, rosterChoices).items : [];
+  const unanswered = resolvedRoster ? resolvedRoster.rows.filter((r) => r.ambiguous).length : 0;
   const activeSeason = snapshot.seasons.find((s) => s.status === 'active');
 
-  const toggleLine = (lineId: string) =>
+  const toggleLine = (lineId: string) => {
+    setLinesTouched(true);
     setSelectedLineIds((prev) =>
       prev.includes(lineId) ? prev.filter((id) => id !== lineId) : prev.length >= MAX_LINES ? prev : [...prev, lineId]
     );
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (unanswered > 0) {
+      pushToast(`Responda "Quem é?" em ${unanswered} ${unanswered === 1 ? 'linha' : 'linhas'} da lista`, undefined, 'error');
+      return;
+    }
     const res = await runAction(async () => {
       const confirmedIds = parsedItems.length
         ? await babaService.ensurePlayersFromRoster(
@@ -113,6 +137,16 @@ export const CreatePeladaModal: React.FC = () => {
           <label className="block text-xs font-semibold text-slate-400 mb-2">
             Equipes ({selectedLineIds.length} de {MIN_LINES} a {MAX_LINES})
           </label>
+          {listCount > 0 && (
+            <p
+              className={`mb-2 text-xs font-semibold ${
+                selectedLineIds.length === suggestTeamCount(listCount) ? 'text-lime-300' : 'text-amber-300'
+              }`}
+            >
+              Lista com {listCount}: {teamSplitLabel(listCount)}
+              {selectedLineIds.length !== suggestTeamCount(listCount) && ` (você marcou ${selectedLineIds.length})`}
+            </p>
+          )}
           <div className="grid grid-cols-2 gap-2">
             {snapshot.lines.map((line) => {
               const active = selectedLineIds.includes(line.id);

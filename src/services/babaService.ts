@@ -58,6 +58,7 @@ import {
   computeVoteTally,
   deriveRoundGoals,
   determineChampionLineId,
+  findTopTie,
 } from '../utils/statsEngine';
 import { getFirebaseServices } from './firebaseClient';
 import { clampSkill } from './normalize';
@@ -1075,6 +1076,12 @@ export const babaService = {
         fail('Registre pelo menos um jogo antes de encerrar a pelada.');
       }
       const standings = computePeladaStandings(pelada, s.lines, s.matches);
+      const tie = findTopTie(standings);
+      if (tie.length) {
+        fail(
+          `Empate no 1º lugar entre ${tie.map((t) => t.lineName).join(' e ')}. Registre um jogo de desempate antes de encerrar.`
+        );
+      }
       const championLineId = determineChampionLineId(standings);
       const now = nowIso();
 

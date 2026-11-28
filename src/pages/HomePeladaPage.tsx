@@ -106,28 +106,29 @@ export const HomePeladaPage: React.FC = () => {
       )}
 
       {/* CABEÇALHO DA PELADA */}
-      <div className={`${cardClass} p-4 sm:p-5 flex items-start justify-between gap-3`}>
-        <div className="min-w-0 space-y-1.5">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-base sm:text-xl font-extrabold text-white">{pelada.title}</h1>
-            <span className={`px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold ${status.cls}`}>{status.text}</span>
-            {season && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/5 text-slate-400">{season.name}</span>}
+      <div className={`${cardClass} p-5 sm:p-6 flex items-start justify-between gap-3`}>
+        <div className="min-w-0 space-y-2.5">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h1 className="text-3xl sm:text-4xl text-white">{pelada.title}</h1>
+            <span className={`px-2.5 py-1 rounded-full text-xs sm:text-sm font-bold ${status.cls}`}>{status.text}</span>
+            {season && <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-white/5 text-slate-400">{season.name}</span>}
           </div>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] sm:text-xs text-slate-400">
-            <span className="inline-flex items-center gap-1">
-              <CalendarDays className="w-3.5 h-3.5" /> {formatShortDateBR(pelada.date)}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm sm:text-base text-slate-300">
+            <span className="inline-flex items-center gap-1.5">
+              <CalendarDays className="w-4 h-4 text-slate-500" /> {formatShortDateBR(pelada.date)}
             </span>
-            <span className="inline-flex items-center gap-1">
-              <Clock className="w-3.5 h-3.5" /> {pelada.time}
+            <span className="inline-flex items-center gap-1.5">
+              <Clock className="w-4 h-4 text-slate-500" /> {pelada.time}
             </span>
             {pelada.location && (
-              <span className="inline-flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5" /> {pelada.location}
+              <span className="inline-flex items-center gap-1.5">
+                <MapPin className="w-4 h-4 text-slate-500" /> {pelada.location}
               </span>
             )}
-            <span>
-              {pelada.confirmedPlayerIds.length} confirmados • {matchCount} {matchCount === 1 ? 'jogo' : 'jogos'}
-            </span>
+          </div>
+          <div className="text-sm sm:text-base text-slate-400">
+            <strong className="text-white">{pelada.confirmedPlayerIds.length}</strong> confirmados ·{' '}
+            <strong className="text-white">{matchCount}</strong> {matchCount === 1 ? 'jogo' : 'jogos'}
           </div>
         </div>
 
@@ -138,9 +139,9 @@ export const HomePeladaPage: React.FC = () => {
               onClick={handleDelete}
               title="Excluir pelada"
               aria-label="Excluir pelada"
-              className="p-2 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-white/[0.06] transition cursor-pointer disabled:opacity-40"
+              className="p-2.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-white/[0.06] transition cursor-pointer disabled:opacity-40"
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 className="w-5 h-5" />
             </button>
           )}
           {!isFinished && pelada.votingStatus === 'open' && (

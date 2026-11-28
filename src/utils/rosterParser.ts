@@ -162,6 +162,27 @@ export function parseRosterLines(text: string, existingPlayers: Player[]): Edita
   return result;
 }
 
+/**
+ * Jogadores que a lista menciona, de forma TOLERANTE (para "Manter só esta lista"):
+ * um nome com vários cadastros mantém todos, e se não houver cadastro com a mesma
+ * grafia, aceita o nome sem acento (ex.: "Joao" → "João"). Na dúvida, mantém.
+ */
+export function findListedPlayerIds(text: string, players: Player[]): { ids: Set<string>; notFound: string[] } {
+  const ids = new Set<string>();
+  const notFound: string[] = [];
+  for (const item of parseRosterLines(text, players)) {
+    if (item.candidateIds.length) {
+      item.candidateIds.forEach((id) => ids.add(id));
+      continue;
+    }
+    const folded = foldStr(item.typedName);
+    const loose = players.filter((p) => foldStr(p.name) === folded || (p.nickname && foldStr(p.nickname) === folded));
+    if (loose.length) loose.forEach((p) => ids.add(p.id));
+    else notFound.push(item.typedName);
+  }
+  return { ids, notFound };
+}
+
 /** Lista para importar: um item por pessoa (a mesma pessoa repetida conta uma vez). */
 export function parseRosterText(text: string, existingPlayers: Player[]): EditableRosterItem[] {
   return resolveRoster(text, existingPlayers, {}).items;

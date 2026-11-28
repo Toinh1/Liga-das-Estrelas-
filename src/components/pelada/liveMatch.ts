@@ -85,6 +85,30 @@ export function formatClock(ms: number): string {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
+let audioCtx: AudioContext | null = null;
+
+/**
+ * Libera o som no navegador. Precisa ser chamado num toque do usuário
+ * (ex.: "Iniciar partida"); senão o iPhone bloqueia o apito do fim do jogo.
+ */
+export function primeAudio() {
+  try {
+    const Ctx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!Ctx) return;
+    if (!audioCtx) audioCtx = new Ctx();
+    void audioCtx.resume?.();
+    // Toque silencioso para destravar o áudio
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    gain.gain.value = 0.0001;
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.05);
+  } catch {
+    /* ignore */
+  }
+}
+
 /** Aviso de fim de jogo: vibração + três apitos curtos (se o aparelho permitir). */
 export function signalEnd() {
   try {
@@ -95,7 +119,9 @@ export function signalEnd() {
   try {
     const Ctx = window.AudioContext || (window as any).webkitAudioContext;
     if (!Ctx) return;
-    const ctx = new Ctx();
+    if (!audioCtx) audioCtx = new Ctx();
+    const ctx = audioCtx;
+    void ctx.resume?.();
     [0, 0.35, 0.7].forEach((t, i) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -108,7 +134,6 @@ export function signalEnd() {
       osc.start(ctx.currentTime + t);
       osc.stop(ctx.currentTime + t + 0.65);
     });
-    setTimeout(() => ctx.close().catch(() => undefined), 1800);
   } catch {
     /* ignore */
   }

@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { ArrowRight, Check, ChevronDown, ClipboardCopy, ClipboardPaste, UserPlus, X } from 'lucide-react';
 import { useBaba } from '../../context/BabaContext';
 import { babaService } from '../../services/babaService';
-import type { Pelada, Player, PresenceStatus } from '../../types/domain';
+import { pickLineIds, suggestTeamCount, teamSplitLabel, type Pelada, type Player, type PresenceStatus } from '../../types/domain';
 import { resolveRoster, type RosterChoices } from '../../utils/rosterParser';
 import { RosterLinesEditor } from '../RosterLinesEditor';
 import { formatShortDateBR } from '../../utils/statsEngine';
@@ -35,7 +35,9 @@ export const PresencePanel: React.FC<{ pelada: Pelada; onGoToTeams?: () => void 
   if (!snapshot || !user || !groups) return null;
 
   const isFinished = pelada.status === 'finished';
-  const parsed = importText ? resolveRoster(importText, snapshot.players, importChoices).items : [];
+  const resolved = importText ? resolveRoster(importText, snapshot.players, importChoices) : null;
+  const parsed = resolved?.items ?? [];
+  const unanswered = resolved ? resolved.rows.filter((r) => r.ambiguous).length : 0;
 
   const setFor = (playerId: string, status: PresenceStatus) =>
     runAction(() => babaService.setPlayerPresence(pelada.id, playerId, status));
@@ -46,7 +48,19 @@ export const PresencePanel: React.FC<{ pelada: Pelada; onGoToTeams?: () => void 
       const ids = await babaService.ensurePlayersFromRoster(
         parsed.map((it) => ({ name: it.name, position: it.position, matchedPlayerId: it.matchedPlayerId, skillLevel: it.skillLevel, forceNew: it.forceNew }))
       );
+      const total = new Set([...pelada.confirmedPlayerIds, ...ids]).size;
       await babaService.setConfirmedList(pelada.id, [...pelada.confirmedPlayerIds, ...ids]);
+      // 18 jogadores = 3 times, 24 = 4 times (só antes de ter times/jogos)
+      const want = suggestTeamCount(total);
+      const noTeamsYet =
+        Object.values(pelada.lineRosters).flat().length === 0 && !snapshot.matches.some((m) => m.peladaId === pelada.id);
+      if (noTeamsYet && want !== pelada.participatingLineIds.length) {
+        const next = pickLineIds(pelada.participatingLineIds, snapshot.lines.map((l) => l.id), want);
+        if (next) {
+          await babaService.setParticipatingLines(pelada.id, next);
+          pushToast(`Lista com ${total}: ${want} times nesta pelada`);
+        }
+      }
       return ids.length;
     }, 'Lista importada!');
     if (res) {
@@ -162,7 +176,17 @@ export const PresencePanel: React.FC<{ pelada: Pelada; onGoToTeams?: () => void 
               {parsed.length} nome(s) · {parsed.filter((p) => p.skillLevel !== undefined).length} com nível ·{' '}
               {parsed.filter((p) => p.isNew).length} novo(s) cadastro(s)
             </span>
-            <button disabled={busyAction || parsed.length === 0} onClick={handleImport} className={primaryBtn}>
+            {parsed.length > 0 && (
+              <span className="w-full text-sm font-bold text-lime-300">
+                {teamSplitLabel(new Set([...pelada.confirmedPlayerIds, ...parsed.map((p) => p.matchedPlayerId ?? p.key)]).size)}
+              </span>
+            )}
+            {unanswered > 0 && (
+              <span className="w-full text-xs font-semibold text-amber-300">
+                Responda "Quem é?" em {unanswered} {unanswered === 1 ? 'linha' : 'linhas'} antes de confirmar.
+              </span>
+            )}
+            <button disabled={busyAction || parsed.length === 0 || unanswered > 0} onClick={handleImport} className={primaryBtn}>
               Marcar como confirmados
             </button>
           </div>

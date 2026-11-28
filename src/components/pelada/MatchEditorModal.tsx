@@ -12,6 +12,7 @@ import {
   formatClock,
   loadDuration,
   loadLive,
+  primeAudio,
   saveDuration,
   saveLive,
   signalEnd,
@@ -96,8 +97,10 @@ export const MatchEditorModal: React.FC<{
   lines: LineTeam[];
   match?: MatchRecord;
   initial?: { homeLineId: string; awayLineId: string; homeGoals: number; awayGoals: number };
+  /** Já começa com estas duas linhas escolhidas (ex.: jogo de desempate). */
+  preset?: { homeLineId: string; awayLineId: string };
   onClose: () => void;
-}> = ({ pelada, lines, match, initial, onClose }) => {
+}> = ({ pelada, lines, match, initial, preset, onClose }) => {
   const { snapshot, runAction, busyAction } = useBaba();
   // Partida ao vivo salva neste aparelho (retoma de onde parou)
   const [saved] = useState(() => (match || initial ? null : loadLive(pelada.id)));
@@ -108,8 +111,12 @@ export const MatchEditorModal: React.FC<{
   const [live, setLive] = useState<LiveMatchState | null>(saved);
   const [durationMin, setDurationMin] = useState(() => saved?.durationMin ?? loadDuration());
   const [now, setNow] = useState(() => Date.now());
-  const [homeLineId, setHomeLineId] = useState(match?.homeLineId ?? initial?.homeLineId ?? saved?.homeLineId ?? lines[0]?.id ?? '');
-  const [awayLineId, setAwayLineId] = useState(match?.awayLineId ?? initial?.awayLineId ?? saved?.awayLineId ?? lines[1]?.id ?? '');
+  const [homeLineId, setHomeLineId] = useState(
+    match?.homeLineId ?? initial?.homeLineId ?? saved?.homeLineId ?? preset?.homeLineId ?? lines[0]?.id ?? ''
+  );
+  const [awayLineId, setAwayLineId] = useState(
+    match?.awayLineId ?? initial?.awayLineId ?? saved?.awayLineId ?? preset?.awayLineId ?? lines[1]?.id ?? ''
+  );
   const [homeGoals, setHomeGoals] = useState(match?.homeGoals ?? initial?.homeGoals ?? saved?.homeGoals ?? 0);
   const [awayGoals, setAwayGoals] = useState(match?.awayGoals ?? initial?.awayGoals ?? saved?.awayGoals ?? 0);
   const [homeScorers, setHomeScorers] = useState<Counts>(toCounts(match?.homeScorers ?? []));
@@ -191,6 +198,8 @@ export const MatchEditorModal: React.FC<{
   };
 
   const startLive = () => {
+    primeAudio();
+    endedRef.current = false;
     saveDuration(durationMin);
     setHomeGoals(0);
     setAwayGoals(0);
@@ -209,7 +218,12 @@ export const MatchEditorModal: React.FC<{
     setStep('live');
   };
 
+  // Evita encerrar duas vezes (o relógio roda a cada 250 ms)
+  const endedRef = useRef(false);
+
   const finishLive = (state: LiveMatchState, reason: EndReason) => {
+    if (endedRef.current) return;
+    endedRef.current = true;
     const done: LiveMatchState = {
       ...state,
       elapsedMs: elapsedOf(state),
@@ -226,6 +240,7 @@ export const MatchEditorModal: React.FC<{
 
   const togglePause = () => {
     if (!live) return;
+    primeAudio();
     persist(
       live.runningSince
         ? { ...live, elapsedMs: elapsedOf(live), runningSince: null }
@@ -246,6 +261,8 @@ export const MatchEditorModal: React.FC<{
 
   const resumeLive = () => {
     if (!live) return;
+    primeAudio();
+    endedRef.current = false;
     persist({ ...live, homeGoals, awayGoals, finished: false, endReason: undefined, runningSince: Date.now() });
     setStep('live');
   };

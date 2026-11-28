@@ -231,8 +231,27 @@ export function computePeladaStandings(
 }
 
 /** Campeã da rodada: líder da tabela, desde que pelo menos um jogo tenha sido disputado. */
+/**
+ * Linhas empatadas em 1º em TUDO (pontos, vitórias, saldo e gols marcados).
+ * Vazio quando há uma líder isolada. Nesse caso o baba precisa de um jogo de desempate.
+ */
+export function findTopTie(standings: LineStanding[]): LineStanding[] {
+  const played = sortStandings(standings).filter((s) => s.played > 0);
+  const top = played[0];
+  if (!top) return [];
+  const tied = played.filter(
+    (s) =>
+      s.points === top.points &&
+      s.wins === top.wins &&
+      s.goalDifference === top.goalDifference &&
+      s.goalsFor === top.goalsFor
+  );
+  return tied.length > 1 ? tied : [];
+}
+
 export function determineChampionLineId(standings: LineStanding[]): string | undefined {
-  const leader = standings[0];
+  if (findTopTie(standings).length) return undefined; // empate: decide no jogo de desempate
+  const leader = sortStandings(standings)[0];
   return leader && leader.played > 0 ? leader.lineId : undefined;
 }
 

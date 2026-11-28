@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useBaba } from '../context/BabaContext';
 import { babaService } from '../services/babaService';
-import { parseRosterText } from '../utils/rosterParser';
+import { findListedPlayerIds } from '../utils/rosterParser';
 import { Modal, PlayerAvatar, inputClass, playerLabel, primaryBtn } from './ui';
 
 /**
@@ -14,13 +14,12 @@ export const KeepOnlyPlayersModal: React.FC<{ onClose: () => void }> = ({ onClos
 
   const preview = useMemo(() => {
     if (!snapshot || !text.trim()) return null;
-    const parsed = parseRosterText(text, snapshot.players);
-    const keepIds = parsed.filter((p) => p.matchedPlayerId).map((p) => p.matchedPlayerId!);
-    const notFound = parsed.filter((p) => !p.matchedPlayerId).map((p) => p.name);
+    // Tolerante: homônimos ficam todos e nomes sem acento também contam
+    const { ids, notFound } = findListedPlayerIds(text, snapshot.players);
+    const keepIds = Array.from(ids);
     const keep = new Set([...keepIds, user?.playerId]);
     const leaving = snapshot.players.filter((p) => !keep.has(p.id));
     return {
-      parsed,
       keepIds,
       notFound,
       toDelete: leaving.filter((p) => !p.userId),

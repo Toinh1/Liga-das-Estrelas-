@@ -249,3 +249,51 @@ test('lista: acento diferencia pessoas ("Cauã" ≠ "Caua"), maiúsculas não', 
   assert.equal(res.rows[1].item.matchedPlayerId, 'c1');
   assert.equal(res.rows[2].duplicateOfLine, 1);
 });
+
+import { findListedPlayerIds } from '../src/utils/rosterParser.ts';
+
+test('manter só esta lista: homônimos ficam todos e nome sem acento também conta', () => {
+  const ps = [
+    { id: 'a', name: 'Carlos', photoUrl: '', position: 'Meia', skillLevel: 3, active: true, createdAt: '' },
+    { id: 'b', name: 'Carlos', photoUrl: '', position: 'Meia', skillLevel: 2, active: true, createdAt: '' },
+    { id: 'c', name: 'João', photoUrl: '', position: 'Meia', skillLevel: 3, active: true, createdAt: '' },
+    { id: 'd', name: 'Pedro', photoUrl: '', position: 'Meia', skillLevel: 3, active: true, createdAt: '' },
+  ] as Player[];
+  const { ids, notFound } = findListedPlayerIds('1- Carlos\n2- Joao\n3- Fulano', ps);
+  assert.deepEqual([...ids].sort(), ['a', 'b', 'c']); // os dois Carlos e o João ficam; Pedro sai
+  assert.deepEqual(notFound, ['Fulano']);
+});
+
+test('lista de 18 = 3 times, lista de 24 = 4 times', async () => {
+  const { suggestTeamCount, teamSplitLabel } = await import('../src/types/domain.ts');
+  assert.equal(suggestTeamCount(18), 3);
+  assert.equal(suggestTeamCount(24), 4);
+  assert.equal(suggestTeamCount(12), 3);
+  assert.equal(suggestTeamCount(30), 4);
+  assert.equal(teamSplitLabel(24), 'pelada de 24 · 4 times de 6');
+  assert.equal(teamSplitLabel(18), 'pelada de 18 · 3 times de 6');
+  const { resolveRoster } = await import('../src/utils/rosterParser.ts');
+  const list = ['1-Antônio Henrique','2-Felipe Professor','3-Silas','4-Alan GSD','5-Eduardo Oliva','6-Pedro','7-Clecinho','8-Carlos','9-Henrique ','10- Gabriel Fernandes ','11- Juan','12- Tayronne','13- Mateus','14-Tony ','15- Raí (convidado)','16- Lafaiete ','17- João Paulo ','18- Gabriel cardoso','19- Eduardo ','20- Robertinho ','21-Salatiel','22-Romario','23-Cleiton','24-romario'].join('\n');
+  const r = resolveRoster(list, [], {});
+  assert.equal(r.rows.length, 24);
+  // "Romario" e "romario" caem como repetido até o admin tocar em "Pessoa nova"
+  assert.equal(r.items.length, 23);
+  const dupKey = Object.fromEntries([]);
+  void dupKey;
+});
+
+test('empate em tudo no 1º lugar exige jogo de desempate', async () => {
+  const { findTopTie } = await import('../src/utils/statsEngine.ts');
+  const three = [...lines, { id: 'P', name: 'Linha Preta', shortName: 'PRE', colorHex: '#000', textColorHex: '#fff', createdAt: '' }];
+  const p3: Pelada = { ...pelada, participatingLineIds: ['A', 'B', 'P'], lineRosters: { A: [], B: [], P: [] } };
+  // Azul 2x0 Branca, Preta 2x0 Branca (igual ao print)
+  const ms = [match('m1', 2, 0), match('m2', 2, 0, { homeLineId: 'P', orderIndex: 2 })];
+  const st = computePeladaStandings(p3, three, ms);
+  assert.deepEqual(findTopTie(st).map((t) => t.lineId).sort(), ['A', 'P']);
+  assert.equal(determineChampionLineId(st), undefined);
+  // Desempate: Preta 1x0 Azul
+  const st2 = computePeladaStandings(p3, three, [...ms, match('m3', 1, 0, { homeLineId: 'P', awayLineId: 'A', orderIndex: 3 })]);
+  assert.equal(findTopTie(st2).length, 0);
+  assert.equal(determineChampionLineId(st2), 'P');
+});
+
